@@ -104,6 +104,12 @@ class Presta_Spot_Admin
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_DESCRIPTION],
         ));
 
+        register_setting('prestaspot_settings_group', 'prestaspot_show_price', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_PRICE],
+        ));
+
         register_setting('prestaspot_settings_group', 'prestaspot_layout', array(
             'type' => 'string',
             'sanitize_callback' => array($this, 'sanitize_layout'),

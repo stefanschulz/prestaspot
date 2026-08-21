@@ -167,6 +167,13 @@
                             onChange: function ( value ) {
                                 setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
                             },
+                        } ),
+                        el( ToggleControl, {
+                            label: __( 'On Sale Only', 'prestaspot' ),
+                            checked: attributes.onSale,
+                            onChange: function ( value ) {
+                                setAttributes( { onSale: value } );
+                            },
                         } )
                     ),
                     el(
@@ -199,6 +206,13 @@
                             checked: attributes.showDescription,
                             onChange: function ( value ) {
                                 setAttributes( { showDescription: value } );
+                            },
+                        } ),
+                        el( ToggleControl, {
+                            label: __( 'Show Price', 'prestaspot' ),
+                            checked: attributes.showPrice,
+                            onChange: function ( value ) {
+                                setAttributes( { showPrice: value } );
                             },
                         } )
                     ),

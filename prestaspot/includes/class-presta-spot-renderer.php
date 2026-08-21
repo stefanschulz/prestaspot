@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, on_sale?: bool, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -32,12 +32,17 @@ class Presta_Spot_Renderer
 
         $product_count = !empty($args['product_count']) ? absint($args['product_count']) : $settings[Presta_Spot_Settings::PRODUCT_COUNT];
         $category_id = absint($args['category_id'] ?? 0);
+        $on_sale = !empty($args['on_sale']);
         $columns = !empty($args['columns']) ? absint($args['columns']) : $settings[Presta_Spot_Settings::COLUMNS];
         $show_image = array_key_exists('show_image', $args) ? (bool)$args['show_image'] : $settings[Presta_Spot_Settings::SHOW_IMAGE];
         $show_name = array_key_exists('show_name', $args) ? (bool)$args['show_name'] : $settings[Presta_Spot_Settings::SHOW_NAME];
         $show_description = array_key_exists('show_description', $args) ? (bool)$args['show_description'] : $settings[Presta_Spot_Settings::SHOW_DESCRIPTION];
+        $show_price = array_key_exists('show_price', $args) ? (bool)$args['show_price'] : $settings[Presta_Spot_Settings::SHOW_PRICE];
         $layout = !empty($args['layout']) ? $args['layout'] : $settings[Presta_Spot_Settings::LAYOUT];
         $element_order = Presta_Spot_Settings::get_layout_element_order($layout);
+        // Price isn't part of the layout picker (it would multiply the number
+        // of layout choices); it always renders directly after the name.
+        array_splice($element_order, array_search('name', $element_order, true) + 1, 0, array('price'));
         $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)
             ? $args['view_mode']
             : $settings[Presta_Spot_Settings::VIEW_MODE];
@@ -51,7 +56,7 @@ class Presta_Spot_Renderer
             ? (sanitize_hex_color($args['button_color']) ?: $settings[Presta_Spot_Settings::BUTTON_COLOR])
             : $settings[Presta_Spot_Settings::BUTTON_COLOR];
 
-        $products = $this->api->get_products($product_count, $category_id);
+        $products = $this->api->get_products($product_count, $category_id, $on_sale);
 
         ob_start();
         include PRESTASPOT_PLUGIN_DIR . 'templates/product-cards.php';

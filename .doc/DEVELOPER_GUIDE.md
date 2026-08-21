@@ -54,7 +54,7 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
-3. In the permissions table, tick the **View (GET)** column for the `products` and `images` rows (that's all PrestaSpot needs) → Save. Tick `languages` too if you're testing the Polylang language sync (see below).
+3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, and `currencies` rows (that's all PrestaSpot needs) → Save. Tick `languages` too if you're testing the Polylang/WPML language sync (see below).
 4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories, which is enough to exercise `product_count`, `category_id`, and pagination-adjacent behavior without adding real data.

@@ -30,12 +30,14 @@ class Presta_Spot_Shortcode
         $attributes = shortcode_atts(array(
             'product_count' => 0,
             'category_id' => 0,
+            'on_sale' => 'no',
             'columns' => 0,
             'layout' => '',
             'view_mode' => '',
             'show_image' => '',
             'show_name' => '',
             'show_description' => '',
+            'show_price' => '',
             'link_text' => '',
             'link_style' => '',
             'button_color' => '',
@@ -44,6 +46,7 @@ class Presta_Spot_Shortcode
         $render_args = array(
             'product_count' => (int)$attributes['product_count'],
             'category_id' => (int)$attributes['category_id'],
+            'on_sale' => $this->parse_bool($attributes['on_sale']),
             'columns' => (int)$attributes['columns'],
             'layout' => $attributes['layout'],
             'view_mode' => $attributes['view_mode'],
@@ -52,7 +55,7 @@ class Presta_Spot_Shortcode
             'button_color' => $attributes['button_color'],
         );
 
-        foreach (array('show_image', 'show_name', 'show_description') as $flag) {
+        foreach (array('show_image', 'show_name', 'show_description', 'show_price') as $flag) {
             if ($attributes[$flag] !== '') {
                 $render_args[$flag] = $this->parse_bool($attributes[$flag]);
             }

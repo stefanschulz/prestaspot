@@ -21,6 +21,7 @@ class Presta_Spot_Settings
     public const SHOW_IMAGE = 'show_image';
     public const SHOW_NAME = 'show_name';
     public const SHOW_DESCRIPTION = 'show_description';
+    public const SHOW_PRICE = 'show_price';
     public const LAYOUT = 'layout';
 
     // Card layouts: which order image/name/description render in. The
@@ -62,6 +63,7 @@ class Presta_Spot_Settings
         self::SHOW_IMAGE => true,
         self::SHOW_NAME => true,
         self::SHOW_DESCRIPTION => true,
+        self::SHOW_PRICE => true,
         self::LAYOUT => self::LAYOUT_IMAGE_NAME_DESCRIPTION,
         self::VIEW_MODE => self::VIEW_MODE_GRID,
         // Empty string means "use the built-in translated label" - a class
@@ -84,6 +86,7 @@ class Presta_Spot_Settings
             self::SHOW_IMAGE => $this->get_prestaspot_option(self::SHOW_IMAGE),
             self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
             self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
+            self::SHOW_PRICE => $this->get_prestaspot_option(self::SHOW_PRICE),
             self::LAYOUT => $this->get_prestaspot_option(self::LAYOUT),
             self::VIEW_MODE => $this->get_prestaspot_option(self::VIEW_MODE),
             self::LINK_TEXT => $this->get_prestaspot_option(self::LINK_TEXT),
@@ -99,6 +102,7 @@ class Presta_Spot_Settings
         $settings[self::SHOW_IMAGE] = (bool)$settings[self::SHOW_IMAGE];
         $settings[self::SHOW_NAME] = (bool)$settings[self::SHOW_NAME];
         $settings[self::SHOW_DESCRIPTION] = (bool)$settings[self::SHOW_DESCRIPTION];
+        $settings[self::SHOW_PRICE] = (bool)$settings[self::SHOW_PRICE];
         $settings[self::LAYOUT] = array_key_exists($settings[self::LAYOUT], self::LAYOUT_ELEMENT_ORDER)
             ? $settings[self::LAYOUT]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LAYOUT];

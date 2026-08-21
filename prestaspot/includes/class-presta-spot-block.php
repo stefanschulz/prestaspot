@@ -41,10 +41,12 @@ class Presta_Spot_Block
         return $this->renderer->render(array(
             'product_count' => (int)($attributes['productCount'] ?? 0),
             'category_id' => (int)($attributes['categoryId'] ?? 0),
+            'on_sale' => (bool)($attributes['onSale'] ?? false),
             'columns' => (int)($attributes['columns'] ?? 0),
             'show_image' => (bool)($attributes['showImage'] ?? true),
             'show_name' => (bool)($attributes['showName'] ?? true),
             'show_description' => (bool)($attributes['showDescription'] ?? true),
+            'show_price' => (bool)($attributes['showPrice'] ?? true),
             'layout' => (string)($attributes['layout'] ?? ''),
             'view_mode' => (string)($attributes['viewMode'] ?? ''),
             'link_text' => (string)($attributes['linkText'] ?? ''),

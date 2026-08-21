@@ -22,7 +22,7 @@ class Presta_Spot_Api
         $this->settings = $settings;
     }
 
-    public function get_products(int $limit, int $category_id = 0): array
+    public function get_products(int $limit, int $category_id = 0, bool $on_sale = false): array
     {
         $settings = $this->settings->get_all();
         $shop_url = $settings[Presta_Spot_Settings::SHOP_URL];
@@ -34,29 +34,36 @@ class Presta_Spot_Api
 
         $limit = max(1, $limit);
         $language_id = $this->resolve_language_id($shop_url, $api_key);
-        $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id);
+        $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0'));
         $cached = get_transient($cache_key);
         if ($cached !== false) {
             return $cached;
         }
 
-        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id);
+        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id, $on_sale);
 
         set_transient($cache_key, $products, $settings[Presta_Spot_Settings::CACHE_DURATION]);
 
         return $products;
     }
 
-    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id): array
+    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale): array
     {
         $args = array(
-            'display' => '[id,name,description_short,link_rewrite,id_default_image]',
+            // "price" here is always tax-excluded - PrestaShop's tax/reduction
+            // -aware computed price (the "price[alias][use_tax]=..." bracket
+            // syntax) only works when fetching a single product by id, not on
+            // this list endpoint, so it can't be used for a product listing.
+            'display' => '[id,name,description_short,link_rewrite,id_default_image,price]',
             'output_format' => 'JSON',
             'filter[active]' => '1',
             'limit' => '0,' . $limit,
         );
         if ($category_id > 0) {
             $args['filter[id_category_default]'] = (string)$category_id;
+        }
+        if ($on_sale) {
+            $args['filter[on_sale]'] = '1';
         }
         if ($language_id > 0) {
             // "language" (not filter[]) makes multilingual fields come back
@@ -77,11 +84,12 @@ class Presta_Spot_Api
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
         $raw_products = $body['products'] ?? array();
+        $currency = $this->get_shop_currency($shop_url, $api_key);
 
-        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key), $raw_products);
+        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency), $raw_products);
     }
 
-    private function normalize_product(array $product, string $shop_url, string $api_key): array
+    private function normalize_product(array $product, string $shop_url, string $api_key, array $currency): array
     {
         $id = absint($product['id'] ?? 0);
 
@@ -91,7 +99,14 @@ class Presta_Spot_Api
             'description' => wp_strip_all_tags($this->localized_value($product['description_short'] ?? '')),
             'image_url' => $this->build_image_url($shop_url, $api_key, $id, $product['id_default_image'] ?? ''),
             'permalink' => trailingslashit($shop_url) . 'index.php?controller=product&id_product=' . $id,
+            'price' => isset($product['price']) ? $this->format_price((float)$product['price'], $currency) : '',
         );
+    }
+
+    private function format_price(float $amount, array $currency): string
+    {
+        $formatted = number_format($amount, $currency['precision'], '.', '');
+        return '' !== $currency['symbol'] ? trim($formatted . ' ' . $currency['symbol']) : $formatted;
     }
 
     /**
@@ -216,5 +231,61 @@ class Presta_Spot_Api
         set_transient($cache_key, $languages, DAY_IN_SECONDS);
 
         return $languages;
+    }
+
+    /**
+     * The webservice doesn't expose which currency is the shop's default, so
+     * this picks the first active one - correct for the common single-currency
+     * case, best-effort otherwise. Requires GET access to the "currencies"
+     * resource; falls back to a bare number (no symbol) if that's missing.
+     *
+     * @return array{symbol: string, precision: int}
+     */
+    private function get_shop_currency(string $shop_url, string $api_key): array
+    {
+        $cache_key = 'prestaspot_currency_' . md5($shop_url);
+        $cached = get_transient($cache_key);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        $currency = array('symbol' => '', 'precision' => 2);
+
+        $args = array(
+            'display' => '[symbol,precision]',
+            'output_format' => 'JSON',
+            'filter[active]' => '1',
+            'limit' => '0,1',
+        );
+        // Without a "language" scope, a shop with more than one language but
+        // an untranslated currency symbol in one of them makes the webservice
+        // choke on its own multilingual JSON and return a 500, even though
+        // the (empty-translation) payload underneath is otherwise fine.
+        $languages = $this->get_shop_languages($shop_url, $api_key);
+        if (!empty($languages)) {
+            $args['language'] = (string)$languages[0]['id'];
+        }
+
+        $url = add_query_arg($args, trailingslashit($shop_url) . 'api/currencies');
+
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Basic ' . base64_encode($api_key . ':')),
+            'timeout' => 10,
+        ));
+
+        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $first = $body['currencies'][0] ?? null;
+            if ($first) {
+                $currency = array(
+                    'symbol' => $this->localized_value($first['symbol'] ?? ''),
+                    'precision' => absint($first['precision'] ?? 2),
+                );
+            }
+        }
+
+        set_transient($cache_key, $currency, DAY_IN_SECONDS);
+
+        return $currency;
     }
 }

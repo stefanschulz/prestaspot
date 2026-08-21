@@ -5,7 +5,8 @@
  * @var bool $show_image
  * @var bool $show_name
  * @var bool $show_description
- * @var string[] $element_order Render order of 'image'/'name'/'description'; the "View in shop" link always renders last.
+ * @var bool $show_price
+ * @var string[] $element_order Render order of 'image'/'name'/'price'/'description'; the "View in shop" link always renders last.
  * @var string $view_mode 'grid' (card grid) or 'list' (stacked rows)
  * @var string $link_text Custom shop-link label, or '' to use the built-in translated default
  * @var string $link_style 'link' (plain text link) or 'button'
@@ -17,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Shared by both the grid and list render paths below, so the markup only exists once.
-$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description): string {
+$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description, $show_price): string {
     if ('image' === $element) {
         if (!$show_image || empty($product['image_url'])) {
             return '';
@@ -48,6 +49,13 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
         return sprintf('<p class="prestaspot-card-description">%s</p>', esc_html($product['description']));
     }
 
+    if ('price' === $element) {
+        if (!$show_price || empty($product['price'])) {
+            return '';
+        }
+        return sprintf('<p class="prestaspot-card-price">%s</p>', esc_html($product['price']));
+    }
+
     return '';
 };
 
@@ -74,7 +82,7 @@ $prestaspot_render_link = function (array $product) use ($prestaspot_link_label,
 
 // Dropped up front, not just blanked at render time, so a hidden image
 // correctly merges an otherwise-split name/description in list mode below.
-$prestaspot_visible_elements = array_values(array_filter($element_order, function (string $element) use ($show_image, $show_name, $show_description): bool {
+$prestaspot_visible_elements = array_values(array_filter($element_order, function (string $element) use ($show_image, $show_name, $show_description, $show_price): bool {
     if ('image' === $element) {
         return $show_image;
     }
@@ -83,6 +91,9 @@ $prestaspot_visible_elements = array_values(array_filter($element_order, functio
     }
     if ('description' === $element) {
         return $show_description;
+    }
+    if ('price' === $element) {
+        return $show_price;
     }
     return false;
 }));

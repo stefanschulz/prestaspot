@@ -58,6 +58,12 @@
     font-size: 0.9rem;
 }
 
+.prestaspot-card-price {
+    margin: 0;
+    padding: 0.5rem 1rem 0.25rem;
+    font-weight: 600;
+}
+
 .prestaspot-card-link {
     margin: 0.75rem 1rem 1rem;
     margin-top: auto;
@@ -116,7 +122,8 @@
 }
 
 .prestaspot-list-item-text .prestaspot-card-title,
-.prestaspot-list-item-text .prestaspot-card-description {
+.prestaspot-list-item-text .prestaspot-card-description,
+.prestaspot-list-item-text .prestaspot-card-price {
     padding: 0;
 }
 

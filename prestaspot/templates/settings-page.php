@@ -228,6 +228,19 @@ if (!defined('ABSPATH')) {
                             <?php esc_html_e('Show description', 'prestaspot'); ?>
                         </label>
                     </p>
+                    <p>
+                        <label for="prestaspot_show_price">
+                            <input type="hidden" name="prestaspot_show_price" value="0" />
+                            <input
+                                type="checkbox"
+                                id="prestaspot_show_price"
+                                name="prestaspot_show_price"
+                                value="1"
+                                <?php checked($settings['show_price']); ?>
+                            />
+                            <?php esc_html_e('Show price', 'prestaspot'); ?>
+                        </label>
+                    </p>
                     <p class="description">
                         <?php esc_html_e('Default visibility of product card elements. Can be overridden per block or shortcode.', 'prestaspot'); ?>
                     </p>
@@ -309,5 +322,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" link_text="Shop now" link_style="button" button_color="#2271b1"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" on_sale="no" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" link_text="Shop now" link_style="button" button_color="#2271b1"]</code></p>
 </div>

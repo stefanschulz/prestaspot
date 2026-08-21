@@ -1,5 +1,13 @@
 # PrestaSpot - Changelog
 
+## 0.9.0 (2026-08-21) - Price Display + On-Sale Filter
+
+- New `show_price` boolean (global default + per-block/shortcode override, same pattern as the other card elements) renders the product price. It always sits directly after the name, regardless of `layout` - price isn't part of the layout picker's element order (that would multiply the number of layout choices), so its position is fixed rather than user-configurable.
+- New `on_sale` shortcode/block parameter (instance-only, no global setting - same precedent as `category_id`) maps to `filter[on_sale]=1` on the PrestaShop products request. Note: PrestaShop's `on_sale` field is a manually-curated per-product flag ("display an on-sale badge" in the back office), not an automatic "has an active reduction" detector - a product with a live discount won't match unless that flag is also set.
+- Price comes from the raw `price` field (tax-excluded) on the products list request - PrestaShop's tax/reduction-aware computed-price mechanism (`price[alias][use_tax]=1` bracket syntax) turned out, after live testing, to only work when fetching a single product by id, not on the list/collection endpoint used here, so it couldn't be used for a product listing. Displayed prices are therefore the shop's base catalog price excluding tax.
+- New `Presta_Spot_Api::get_shop_currency()` (transient-cached a full day, same pattern as `get_shop_languages()`) fetches the shop's currency symbol/precision from `/api/currencies` to format the price. Since the webservice doesn't expose which currency is the shop's default, this picks the first active one - correct for the common single-currency case, best-effort otherwise. The request is scoped with `language=` (first available shop language) - without it, a multilingual shop with an untranslated currency symbol makes the webservice return an HTTP 500 on its own malformed multilingual JSON, even though the underlying data is otherwise fine.
+- Requires the Webservice API key to additionally have GET access to the `currencies` resource (see `prestaspot/README.md`); missing that falls back to a bare unformatted number, same graceful-degradation approach as the language sync.
+
 ## 0.8.0 (2026-08-21) - WPML Language Sync
 
 - Extends the language sync introduced in 0.7.0 to also support WPML, the other major WordPress multilingual plugin (Polylang is tried first, WPML second; both active at once is not a realistic scenario). `Presta_Spot_Api::get_current_polylang_iso_code()` is now paired with a `get_current_wpml_iso_code()`, both feeding a shared `get_current_language_iso_code()` used by `resolve_language_id()`.

@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.8.0
+**Version**: 0.9.0
 
 ---
 
@@ -90,6 +90,7 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `SHOW_IMAGE` | `show_image` | `true` | bool |
 | `SHOW_NAME` | `show_name` | `true` | bool |
 | `SHOW_DESCRIPTION` | `show_description` | `true` | bool |
+| `SHOW_PRICE` | `show_price` | `true` | bool |
 | `LAYOUT` | `layout` | `image_name_description` | string enum, see below |
 | `VIEW_MODE` | `view_mode` | `grid` | string enum: `grid` or `list`, see below |
 | `LINK_TEXT` | `link_text` | `''` | string, `sanitize_text_field()`. Empty means "use the built-in translated label" - see the shop link section below |
@@ -110,25 +111,40 @@ const LAYOUT_ELEMENT_ORDER = array(
 
 This is the single source of truth for both (a) validating a stored/submitted layout value and (b) the actual render order (`Presta_Spot_Settings::get_layout_element_order($layout)`, used by the renderer) and (c) the preview block order in the visual layout picker (both the admin template and `blocks/product-list/index.js` build their picker cards from this same list, so a new layout only needs to be added once, here). The "View in shop" link is not part of this order - it always renders last, unconditionally (see `templates/product-cards.php`).
 
+**Price is not part of this constant.** Since it always renders directly after `name` regardless of which layout is picked, `Presta_Spot_Renderer::render()` splices `'price'` into the resolved `$element_order` array at render time (`array_splice($element_order, array_search('name', ...) + 1, 0, ['price'])`) rather than being a fourth position in every `LAYOUT_ELEMENT_ORDER` permutation - that would have multiplied the number of layout choices for no real benefit. Its visibility is still controlled by `$show_price` through the same `$prestaspot_visible_elements` filter as the other elements (see below), so hiding it works exactly the same way; it just isn't reorderable.
+
 ---
 
 ## PrestaShop Webservice Client (`Presta_Spot_Api`)
 
-`get_products(int $limit, int $category_id = 0): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
+`get_products(int $limit, int $category_id = 0, bool $on_sale = false): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
 
-**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
+**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image,price]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&filter[on_sale]=1` when the `on_sale` argument is true, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
 
 **Normalization** (`normalize_product()`) maps the raw PrestaShop product into the flat shape every template expects:
 
 ```php
-['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string]
+['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string, 'price' => string]
 ```
+
+`price` is pre-formatted (amount + currency symbol, e.g. `"23.90 €"`) via `format_price()`, not a raw float - the template only ever needs to echo it. It's built from the `price` field's raw value (always tax-excluded in PrestaShop) and `get_shop_currency()`'s symbol/precision (see below); empty string if the `price` field was missing from the response for some reason (template hides the price element entirely in that case, same as a missing `description`).
 
 - **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string when the request was scoped to a single language via `language=`, or as an array of `{id, value}` pairs (one per configured shop language) when it wasn't. `localized_value()` normalizes both shapes to a string, taking the first language's value in the array case - this array case is now mainly a fallback (no Polylang, or no matching shop language), not the primary path.
 - **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
 - **Permalink**: always `{shop_url}/index.php?controller=product&id_product={id}` (the ID-based fallback URL) rather than a friendly/rewritten URL — this works regardless of the shop's URL-rewrite configuration, at the cost of not being a "pretty" URL.
 
-**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id is part of the key specifically so two languages never share a stale cross-language cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id and `on_sale` are part of the key specifically so different languages or sale-filtered vs. unfiltered requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+
+### Price and currency (`format_price()`, `get_shop_currency()`)
+
+PrestaShop's webservice has a documented tax/reduction-aware computed-price mechanism (`GET /api/products/2?price[my_alias][use_tax]=1`, with further params for reductions, quantity, currency, etc.), but live testing against a real PrestaShop instance showed it **only works when fetching a single product by id** - adding the same `price[alias][...]` query params to the `/api/products` *collection* request is silently ignored (no price fields appear in the response, no error). Computing it per-product would mean one extra HTTP request per product on every cache-miss render, which isn't worth the cost for a lightweight display widget - so PrestaSpot instead uses the plain `price` field already available on the list request. This is always **tax-excluded** (PrestaShop's raw base price); there's no tax-inclusive or reduction-applied variant available in bulk, so what's shown is the shop's base catalog price, not a checkout-accurate price.
+
+`get_shop_currency(string $shop_url, string $api_key): array` (`{symbol: string, precision: int}`) fetches `GET {shop_url}/api/currencies?display=[symbol,precision]&filter[active]=1&limit=0,1`, scoped with `&language={id}` (the first available shop language, from `get_shop_languages()` - not tied to the visitor's resolved language, any valid language id avoids the bug below). Two things learned from live testing that aren't obvious from the docs:
+
+- The webservice exposes no "this is the shop's default currency" flag on the `currencies` resource, so this just takes the first *active* one - correct for the common single-currency shop, best-effort for a genuinely multi-currency one.
+- `symbol` is itself a multilingual field (`localized_value()` handles it, same as `name`/`description_short`) - and critically, requesting it **without** the `language=` scope on a shop with more than one configured language, where the symbol isn't translated into all of them, makes the webservice's own JSON serialization choke on the untranslated (null) entry and return an HTTP 500 - even though the payload underneath (once decoded) is perfectly usable. Always passing `language=` avoids this entirely.
+
+Cached in its own transient (`prestaspot_currency_{md5(shop_url)}`) for `DAY_IN_SECONDS`, same as `get_shop_languages()` - a shop's currency essentially never changes. Requires the Webservice API key to additionally have GET access to the `currencies` resource; without it (or on any other failure), falls back to `{symbol: '', precision: 2}` - `format_price()` then renders a bare number with no currency symbol rather than breaking the card.
 
 ### Multilingual plugin language sync (`resolve_language_id()`)
 
@@ -173,12 +189,14 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `columns`, `show_image`, `show_name`, `show_description`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `on_sale`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
 - **Numeric/string options** (`product_count`, `columns`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style` additionally validate against their `VIEW_MODES`/`LINK_STYLES` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color` re-validates via `sanitize_hex_color()` since it can arrive from an untrusted shortcode attribute.
-- **Boolean options** (`show_image`, `show_name`, `show_description`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
+- **Boolean options** (`show_image`, `show_name`, `show_description`, `show_price`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
+
+`category_id` and `on_sale` are the odd ones out: both are instance-only filters with **no** global setting to fall back to (there's nothing sensible a site-wide "default category" or "default on-sale-only" would mean) - `category_id` already established this precedent (`absint($args['category_id'] ?? 0)`, `0` = no filter), and `on_sale` follows it exactly (`!empty($args['on_sale'])`, unset/false = no filter).
 
 `link_text` has a further wrinkle: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized) - a PHP class constant can't hold a `__()`-translated string, so the built-in "View in shop" label is applied by the template, not the renderer (see below).
 
@@ -220,9 +238,9 @@ When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--but
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `view_mode`, `link_text`, `link_style`, `button_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `view_mode`, `link_text`, `link_style`, `button_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
 
-`show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown".
+`show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown". `on_sale` defaults to `'no'` (not the empty-string sentinel) and is always parsed via the same `parse_bool()` - unlike the `show_*` flags it has no settings-level default to fall through to, so there's no "unset" state to distinguish.
 
 ---
 
@@ -234,7 +252,7 @@ Registered via `register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting.
 
 **Visual pickers**: both `templates/settings-page.php` and `blocks/product-list/index.js` render three radio-based pickers sharing the same `.prestaspot-layout-picker`/`.prestaspot-layout-option` shell (a styled `<label>` wrapping a real radio input, so keyboard/label-click semantics come for free) but different preview content:
 
