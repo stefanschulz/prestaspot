@@ -32,10 +32,7 @@ class Presta_Spot_Renderer
 
         $product_count = !empty($args['product_count']) ? absint($args['product_count']) : $settings[Presta_Spot_Settings::PRODUCT_COUNT];
         $category_id = absint($args['category_id'] ?? 0);
-        // category_id (numeric, precise) wins if both are given; category_name
-        // only kicks in as a lookup when no explicit id was set - this is the
-        // shortcode's name-based equivalent to the block's category dropdown,
-        // which already resolves straight to an id client-side.
+        // category_id wins if both are given.
         if (0 === $category_id && !empty($args['category_name'])) {
             $category_id = $this->api->resolve_category_id_by_name((string)$args['category_name']);
         }
@@ -53,9 +50,7 @@ class Presta_Spot_Renderer
             : $settings[Presta_Spot_Settings::PRICE_POSITION];
         $layout = !empty($args['layout']) ? $args['layout'] : $settings[Presta_Spot_Settings::LAYOUT];
         $element_order = Presta_Spot_Settings::get_layout_element_order($layout);
-        // Price isn't part of the layout picker (it would multiply the number
-        // of layout choices); it's spliced in right after whichever of
-        // name/description $price_position points at instead.
+        // Price isn't part of the layout picker; spliced in after name/description instead.
         $price_anchor = Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION === $price_position ? 'description' : 'name';
         array_splice($element_order, array_search($price_anchor, $element_order, true) + 1, 0, array('price'));
         $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)

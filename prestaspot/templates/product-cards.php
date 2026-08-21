@@ -29,9 +29,7 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
         if (!$show_image || empty($product['image_url'])) {
             return '';
         }
-        // The ribbon lives inside the image link (not as a page-level badge)
-        // so it can visually wrap the photo's corner; .prestaspot-card-image's
-        // overflow:hidden clips the rotated strip to the image bounds.
+        // Lives inside the image link so overflow:hidden clips it to the photo's corner.
         $ribbon = !empty($product['on_sale'])
             ? sprintf('<span class="prestaspot-card-ribbon"%1$s>%2$s</span>', $prestaspot_sale_badge_style, esc_html__('Sale', 'prestaspot'))
             : '';
@@ -72,10 +70,7 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
     return '';
 };
 
-// Fallback for when there's no image to wrap a ribbon around (image hidden,
-// or the product just has none) - independent of $element_order otherwise,
-// always shown for a product PrestaShop flags on_sale, regardless of layout
-// or the on_sale filter argument.
+// Flat badge fallback for when there's no image to wrap a ribbon around.
 $prestaspot_render_badge = function (array $product) use ($show_image, $prestaspot_sale_badge_style): string {
     if (empty($product['on_sale']) || ($show_image && !empty($product['image_url']))) {
         return '';

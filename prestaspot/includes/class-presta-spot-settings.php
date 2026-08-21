@@ -66,9 +66,7 @@ class Presta_Spot_Settings
 
     public const SORT = 'sort';
 
-    // '' means no explicit sort - PrestaShop's own (undefined) product order,
-    // same as before this setting existed. A real, meaningful choice here,
-    // not just a sentinel - same idea as LINK_TEXT's empty default below.
+    // '' = no explicit sort (PrestaShop's own order) - a real choice, like LINK_TEXT's empty default.
     public const SORT_DEFAULT = '';
     public const SORT_NAME_ASC = 'name_asc';
     public const SORT_NAME_DESC = 'name_desc';

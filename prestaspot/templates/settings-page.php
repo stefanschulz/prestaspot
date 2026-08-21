@@ -10,10 +10,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Renders a small icon button next to a field's label; JS (settings-page.js)
-// shows it only once that field's live value has drifted from $default_value,
-// and resets the field to it on click - see class-presta-spot-admin.php's
-// enqueue_admin_scripts() for where that script is loaded.
+// Icon button next to a field's label; settings-page.js shows/hides it based on $default_value.
 $prestaspot_reset_button = function (string $target_name, string $default_value): string {
     $label = esc_attr__('Reset to default', 'prestaspot');
     return sprintf(

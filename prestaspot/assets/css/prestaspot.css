@@ -39,11 +39,7 @@
     object-fit: cover;
 }
 
-/* Classic corner-ribbon technique: a fixed-width bar rotated across the
-   corner, positioned to start past the left edge so the image's own
-   overflow:hidden clips it into a clean diagonal strip. Background/text
-   color are set inline per-render (admin-configured hex), same as the shop
-   link button below - this only supplies the non-color ribbon shape. */
+/* Corner ribbon, clipped by the image's overflow:hidden. Colors are set inline per-render. */
 .prestaspot-card-ribbon {
     position: absolute;
     top: 14px;
@@ -94,9 +90,7 @@
     font-weight: 600;
 }
 
-/* Independent of layout/element order - always the first thing in the
-   card/row when the product is on_sale, regardless of which elements show.
-   Background/text color set inline per-render, same as the ribbon above. */
+/* Flat fallback for the ribbon above; colors set inline per-render. */
 .prestaspot-card-badge {
     display: inline-block;
     align-self: flex-start;

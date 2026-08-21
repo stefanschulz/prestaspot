@@ -40,9 +40,7 @@ class Presta_Spot_Block
     }
 
     /**
-     * Backs the block editor's category picker (see index.js) - not used by
-     * the shortcode, which resolves category_name server-side instead since
-     * it has no equivalent client-side UI to feed.
+     * Backs the block editor's category picker (see index.js).
      */
     public function register_rest_routes(): void
     {

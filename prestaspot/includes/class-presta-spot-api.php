@@ -35,12 +35,7 @@ class Presta_Spot_Api
         $limit = max(1, $limit);
         $language_id = $this->resolve_language_id($shop_url, $api_key);
         if (0 === $language_id) {
-            // No Polylang/WPML match - still pick *some* shop language rather
-            // than leaving the request unscoped: on a shop with 2+ languages
-            // and incomplete translation coverage, an unscoped request for a
-            // multilingual field (name, description) makes the webservice choke
-            // on its own null-translation JSON and return a 500 - the exact bug
-            // get_shop_currency() below already works around the same way.
+            // Unscoped multilingual fields can 500 the webservice - same fix as get_shop_currency() below.
             $shop_languages = $this->get_shop_languages($shop_url, $api_key);
             if (!empty($shop_languages)) {
                 $language_id = $shop_languages[0]['id'];
@@ -62,10 +57,7 @@ class Presta_Spot_Api
     private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale, string $sort): array
     {
         $args = array(
-            // "price" here is always tax-excluded - PrestaShop's tax/reduction
-            // -aware computed price (the "price[alias][use_tax]=..." bracket
-            // syntax) only works when fetching a single product by id, not on
-            // this list endpoint, so it can't be used for a product listing.
+            // "price" is tax-excluded - the tax-aware computed-price mechanism only works per-product, not on this list endpoint.
             'display' => '[id,name,description_short,link_rewrite,id_default_image,price,on_sale]',
             'output_format' => 'JSON',
             'filter[active]' => '1',
@@ -102,9 +94,6 @@ class Presta_Spot_Api
         return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency), $raw_products);
     }
 
-    /**
-     * @return array<string, string>
-     */
     private function build_sort_args(string $sort): array
     {
         $fields = array(
@@ -122,8 +111,7 @@ class Presta_Spot_Api
         [$field, $direction] = $fields[$sort];
         $args = array('sort' => $field . '_' . $direction);
         if ('date_add' === $field) {
-            // Date fields aren't sortable/filterable by default - the
-            // webservice rejects "date_add" outright without this flag.
+            // date_add needs this flag or the webservice rejects it outright.
             $args['date'] = '1';
         }
 
@@ -276,10 +264,7 @@ class Presta_Spot_Api
     }
 
     /**
-     * The webservice doesn't expose which currency is the shop's default, so
-     * this picks the first active one - correct for the common single-currency
-     * case, best-effort otherwise. Requires GET access to the "currencies"
-     * resource; falls back to a bare number (no symbol) if that's missing.
+     * No "default currency" flag exists on this resource, so this just picks the first active one.
      *
      * @return array{symbol: string, precision: int}
      */
@@ -299,10 +284,7 @@ class Presta_Spot_Api
             'filter[active]' => '1',
             'limit' => '0,1',
         );
-        // Without a "language" scope, a shop with more than one language but
-        // an untranslated currency symbol in one of them makes the webservice
-        // choke on its own multilingual JSON and return a 500, even though
-        // the (empty-translation) payload underneath is otherwise fine.
+        // Unscoped + untranslated symbol can 500 the webservice.
         $languages = $this->get_shop_languages($shop_url, $api_key);
         if (!empty($languages)) {
             $args['language'] = (string)$languages[0]['id'];
@@ -332,9 +314,7 @@ class Presta_Spot_Api
     }
 
     /**
-     * Public (unlike get_shop_languages()/get_shop_currency()) - used both by
-     * resolve_category_id_by_name() below and directly by the block editor's
-     * category picker via the REST route in Presta_Spot_Block.
+     * Public (unlike the other shop-data getters) - also used by the REST route in Presta_Spot_Block.
      *
      * @return array<int, array{id: int, name: string}>
      */
@@ -359,8 +339,7 @@ class Presta_Spot_Api
             'output_format' => 'JSON',
             'filter[active]' => '1',
         );
-        // Same untranslated-multilingual-field 500 avoided the same way as
-        // get_shop_currency() above - "name" is multilingual here too.
+        // Same untranslated-field 500 as get_shop_currency() above.
         $languages = $this->get_shop_languages($shop_url, $api_key);
         if (!empty($languages)) {
             $args['language'] = (string)$languages[0]['id'];
@@ -393,9 +372,7 @@ class Presta_Spot_Api
     }
 
     /**
-     * Case-insensitive exact match on category name; 0 (= no filter) if
-     * nothing matches, including duplicate names under different parent
-     * categories - picks the first match rather than erroring.
+     * Case-insensitive exact match; 0 (= no filter) if nothing matches.
      */
     public function resolve_category_id_by_name(string $name): int
     {

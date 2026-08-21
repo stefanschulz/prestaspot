@@ -136,12 +136,7 @@
         );
     }
 
-    // "All Categories" plus one option per fetched category (id as string
-    // value, PrestaShop's actual category name as label). If the block's
-    // stored categoryId isn't among the fetched (active) categories - e.g. an
-    // inactive/deleted category, or the fetch simply hasn't resolved yet -
-    // a synthetic option keeps that value visibly selected instead of the
-    // control silently looking like it reset to "All".
+    // Keeps an unrecognized categoryId visibly selected via a synthetic option.
     function renderCategoryControl( categories, categoryId, onChange ) {
         const knownIds = categories.map( function ( category ) {
             return category.id;
@@ -173,10 +168,7 @@
             const attributes = props.attributes;
             const setAttributes = props.setAttributes;
             const blockProps = useBlockProps();
-            // null = still loading (or nothing fetched yet); [] after a failed
-            // fetch (no shop configured, permissions missing, etc.) - both
-            // fall back to the plain numeric field below rather than blocking
-            // the block on category data that may never arrive.
+            // null = loading, [] = fetch failed/empty - both fall back to the numeric field below.
             const [ categories, setCategories ] = useState( null );
 
             useEffect( function () {

@@ -1,6 +1,4 @@
-/* Sits next to a field's label; hidden until that field's value drifts from
-   its default (settings-page.js toggles .is-visible), so the settings page
-   isn't cluttered with reset icons for anything left at its default. */
+/* Hidden until settings-page.js toggles .is-visible for a non-default value. */
 .prestaspot-field-reset {
     display: none;
     align-items: center;

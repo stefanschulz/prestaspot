@@ -1,8 +1,5 @@
 ( function () {
-    // Hidden companion input for checkboxes (see the settings page's
-    // "checkbox persistence" pattern) shares the same name - excluded here
-    // so a checkbox's default is only ever compared/applied against the
-    // actual checkbox, never its hidden sibling.
+    // Excludes the hidden companion input checkboxes have (same name).
     function getFields( name ) {
         return Array.from( document.getElementsByName( name ) ).filter( function ( field ) {
             return 'hidden' !== field.type;
