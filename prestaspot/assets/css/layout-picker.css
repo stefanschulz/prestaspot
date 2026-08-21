@@ -1,10 +1,5 @@
-/*
- * Visual layout picker: radio buttons styled as clickable cards, each with a
- * small abstract preview of the element order. Shared between the settings
- * page (assets/css/class-presta-spot-admin.php enqueues it) and the block
- * editor (blocks/product-list/block.json "editorStyle") so both look the
- * same and stay in sync automatically.
- */
+/* Shared by all three visual pickers (layout, view mode, link style) in
+   both the settings page and the block editor. */
 .prestaspot-layout-picker {
     display: flex;
     flex-wrap: wrap;
@@ -75,10 +70,6 @@
     color: #50575e;
 }
 
-/*
- * View mode picker (grid vs. list): same .prestaspot-layout-picker/-option
- * shell as the element-order picker above, just a different abstract preview.
- */
 .prestaspot-viewmode-preview {
     display: grid;
     width: 100%;
@@ -110,12 +101,7 @@
     border-radius: 2px;
 }
 
-/*
- * Link style picker (plain link vs. button): same picker shell again. The
- * button swatch's background color is set inline (it mirrors the actual
- * configured button color, not a fixed preview color) - see
- * templates/settings-page.php and blocks/product-list/index.js.
- */
+/* Button swatch background is set inline to the actual configured color. */
 .prestaspot-linkstyle-preview {
     display: flex;
     align-items: center;

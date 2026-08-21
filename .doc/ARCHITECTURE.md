@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.6.0
+**Version**: 0.8.0
 
 ---
 
@@ -116,7 +116,7 @@ This is the single source of truth for both (a) validating a stored/submitted la
 
 `get_products(int $limit, int $category_id = 0): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
 
-**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
+**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
 
 **Normalization** (`normalize_product()`) maps the raw PrestaShop product into the flat shape every template expects:
 
@@ -124,11 +124,44 @@ This is the single source of truth for both (a) validating a stored/submitted la
 ['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string]
 ```
 
-- **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string on single-language shops, or as an array of `{id, value}` pairs on multilang/multistore shops. `localized_value()` normalizes both to a string by taking the first language's value - it does **not** respect the current site/shop language. If multi-language support is ever needed, this is the method to extend.
+- **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string when the request was scoped to a single language via `language=`, or as an array of `{id, value}` pairs (one per configured shop language) when it wasn't. `localized_value()` normalizes both shapes to a string, taking the first language's value in the array case - this array case is now mainly a fallback (no Polylang, or no matching shop language), not the primary path.
 - **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
 - **Permalink**: always `{shop_url}/index.php?controller=product&id_product={id}` (the ID-based fallback URL) rather than a friendly/rewritten URL — this works regardless of the shop's URL-rewrite configuration, at the cost of not being a "pretty" URL.
 
-**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id)`, TTL from the `cache_duration` setting. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id is part of the key specifically so two languages never share a stale cross-language cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+
+### Multilingual plugin language sync (`resolve_language_id()`)
+
+Product data is requested in the PrestaShop language matching the page's current language - as reported by whichever supported multilingual plugin is active (Polylang, then WPML) - so multilingual sites don't always see the shop's default-language text. Fully additive/optional - degrades gracefully to the pre-0.7.0 behavior (the array-normalization case above) when no supported plugin is active or no shop language matches:
+
+```php
+private function resolve_language_id(string $shop_url, string $api_key): int
+{
+    $iso_code = $this->get_current_language_iso_code(); // '' if neither plugin is active
+    if ('' === $iso_code) {
+        return 0;
+    }
+    foreach ($this->get_shop_languages($shop_url, $api_key) as $language) {
+        if ($iso_code === $language['iso_code']) {
+            return $language['id'];
+        }
+    }
+    return 0; // no PrestaShop language matches the current site language
+}
+
+private function get_current_language_iso_code(): string
+{
+    $iso_code = $this->get_current_polylang_iso_code();
+    return '' !== $iso_code ? $iso_code : $this->get_current_wpml_iso_code();
+}
+```
+
+Polylang is tried first, WPML second; both running at once isn't a realistic scenario outside a migration, so a simple first-match order is fine rather than needing to reconcile the two.
+
+- **Polylang**: `pll_current_language('locale')` (not the default `pll_current_language()`, which returns Polylang's admin-editable URL *slug* - not guaranteed to be an ISO 639-1 code at all, e.g. an admin could rename it to `"deutsch"`) truncated to its first 2 characters. The WordPress locale is tied to the site's actual translation files rather than a customizable setting, so it's the more reliable source for a real ISO 639-1 code. Guarded by `function_exists('pll_current_language')`.
+- **WPML**: same underlying problem, different cause - WPML's own language codes aren't guaranteed 2-letter ISO 639-1 either (e.g. `zh-hans`, or a fully custom admin-defined code), so the same locale-based approach is used: `apply_filters('wpml_current_language', null)` gets the current code, then that code is looked up in `apply_filters('wpml_active_languages', null, ['skip_missing' => 0])` for its `default_locale` (WordPress-style, e.g. `de_DE`), truncated the same way. Guarded by `defined('ICL_SITEPRESS_VERSION')` - `apply_filters()` on an unregistered filter just returns the given default (`null`) rather than erroring, but the constant check avoids doing the (harmless but pointless) double filter call when WPML isn't there at all.
+- **Shop languages**: `GET {shop_url}/api/languages?display=[id,iso_code]` - **not** `filter[id_lang]` (that key doesn't exist for this purpose; PrestaShop's language scoping is the separate top-level `language` parameter used in the products request above). Requires the Webservice API key to additionally have GET access to the `languages` resource - if it doesn't, the request 403s, `get_shop_languages()` returns `[]`, and language sync silently falls back to off (same as no multilingual plugin) rather than breaking product fetching. Cached in its own transient (`prestaspot_languages_{md5(shop_url)}`) for `DAY_IN_SECONDS`, independent of `cache_duration`, since a shop's configured languages practically never change - much more stable than the product list.
+- **Matching**: case-sensitive-safe compare of two already-lowercased 2-letter strings (both ISO-code-resolving methods and `get_shop_languages()` lowercase their output before comparing/caching).
 
 ---
 

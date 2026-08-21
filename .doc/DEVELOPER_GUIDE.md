@@ -54,10 +54,42 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
-3. In the permissions table, tick the **View (GET)** column for the `products` and `images` rows (that's all PrestaSpot needs) → Save.
+3. In the permissions table, tick the **View (GET)** column for the `products` and `images` rows (that's all PrestaSpot needs) → Save. Tick `languages` too if you're testing the Polylang language sync (see below).
 4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories, which is enough to exercise `product_count`, `category_id`, and pagination-adjacent behavior without adding real data.
+
+### Testing the multilingual language sync
+
+The demo shop starts with a single language (English, `id_lang=1`), and there's no admin-UI-friendly way to add a second language (PrestaShop's "Add new language" form requires uploading flag/placeholder image files) - going straight through the DB is faster for a throwaway dev shop:
+
+```bash
+docker exec prestaspot-docker-ps-db-1 mariadb -uprestashop -pprestashop prestashop -e "
+INSERT INTO ps_lang (id_lang, name, active, iso_code, language_code, locale, date_format_lite, date_format_full, is_rtl)
+VALUES (2, 'Deutsch (Deutsch)', 1, 'de', 'de', 'de-DE', 'd.m.Y', 'd.m.Y H:i:s', 0);
+INSERT INTO ps_lang_shop (id_lang, id_shop) VALUES (2, 1);
+INSERT INTO ps_product_lang (id_product, id_shop, id_lang, name, description, description_short, link_rewrite, available_now, available_later)
+VALUES (1, 1, 2, 'Kolibri-bedrucktes T-Shirt', '<p>Testbeschreibung.</p>', '<p>Deutsche Kurzbeschreibung.</p>', 'kolibri-bedrucktes-t-shirt', '', '');
+"
+```
+
+Then install Polylang (`Plugins → Add New → search "Polylang"`), add a German language alongside English (Polylang's own "Add new language" admin form works fine, no file uploads required there), and create a page in each language with `[prestaspot product_count="1" show_description="yes"]` - the German page's language is set via the `post_lang_choice` `<select>` in the block editor's "Page" sidebar tab, under a "Languages" panel. Verify the two pages render different product name/description text, and that deactivating Polylang falls both back to the shop's default language without errors.
+
+**WPML** is a paid plugin with no free download, so it can't be installed the same way. To test that code path anyway, drop a tiny test-double plugin (never commit this - it's a throwaway dev artifact) into the container's plugin directory - `docker cp` mangles `/var/www/...`-style paths under Git Bash on Windows unless `MSYS_NO_PATHCONV=1` is exported first:
+
+```php
+<?php
+/** Plugin Name: Fake WPML (test double) */
+if (!defined('ABSPATH')) exit;
+if (!defined('ICL_SITEPRESS_VERSION')) define('ICL_SITEPRESS_VERSION', '4.6.0');
+add_filter('wpml_current_language', fn() => get_option('fake_wpml_lang', 'en'));
+add_filter('wpml_active_languages', fn() => array(
+    'en' => array('language_code' => 'en', 'default_locale' => 'en_US'),
+    'de' => array('language_code' => 'de', 'default_locale' => 'de_DE'),
+));
+```
+
+Deactivate Polylang first (it takes precedence when both are active - useful for testing that precedence, but not while isolating the WPML path), activate the test double, flip the `fake_wpml_lang` option between `en`/`de` directly in the DB to switch languages, and verify the same way as above. Remove the test double directory with `docker exec ... rm -rf` afterward rather than the plugins-page "Delete" button - files created via `docker exec` end up root-owned, which the `www-data`-run PHP process can't delete itself.
 
 ---
 

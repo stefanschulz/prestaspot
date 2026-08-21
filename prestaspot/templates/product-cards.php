@@ -16,12 +16,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Renders one element's markup for one product, or '' if it has nothing to
- * show (hidden via its $show_* flag, or missing data e.g. no image/description).
- * Shared between the grid and list render paths below so the actual
- * image/name/description markup only exists once.
- */
+// Shared by both the grid and list render paths below, so the markup only exists once.
 $prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description): string {
     if ('image' === $element) {
         if (!$show_image || empty($product['image_url'])) {
@@ -77,10 +72,8 @@ $prestaspot_render_link = function (array $product) use ($prestaspot_link_label,
     );
 };
 
-// Elements hidden via their $show_* flag are dropped up front (not just
-// blanked at render time) so a hidden element can't leave behind an empty
-// list-item-text wrapper, and so hiding the image correctly merges an
-// otherwise-split name/description into a single contiguous text group.
+// Dropped up front, not just blanked at render time, so a hidden image
+// correctly merges an otherwise-split name/description in list mode below.
 $prestaspot_visible_elements = array_values(array_filter($element_order, function (string $element) use ($show_image, $show_name, $show_description): bool {
     if ('image' === $element) {
         return $show_image;
@@ -94,11 +87,8 @@ $prestaspot_visible_elements = array_values(array_filter($element_order, functio
     return false;
 }));
 
-// List mode groups consecutive non-image elements into one stacked text
-// block, so e.g. name+description sit in a column next to the image instead
-// of every element being its own row column. When the layout puts the image
-// between name and description, that naturally produces two single-element
-// text groups on either side of the image instead - still a coherent row.
+// List mode: group consecutive non-image elements into one stacked text
+// column, instead of every element being its own row column.
 $prestaspot_list_groups = array();
 $prestaspot_text_buffer = array();
 foreach ($prestaspot_visible_elements as $prestaspot_element) {

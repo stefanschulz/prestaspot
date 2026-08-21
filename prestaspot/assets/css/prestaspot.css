@@ -38,12 +38,8 @@
     object-fit: cover;
 }
 
-/*
- * Title, description and link are direct flex children of .prestaspot-card
- * (not nested in a shared "body" wrapper) so the image can be placed before,
- * between, or after them depending on the configured card layout. Each
- * handles its own horizontal padding; the image stays edge-to-edge.
- */
+/* Direct flex children of .prestaspot-card, not a shared "body" wrapper, so
+   the image can sit before/between/after them depending on the layout. */
 .prestaspot-card-title {
     margin: 0;
     padding: 1rem 1rem 0.25rem;
@@ -69,12 +65,8 @@
     text-decoration: none;
 }
 
-/*
- * Button variant: background/text color are set inline per-render (they come
- * from an admin-configured hex color, not a fixed palette - see
- * Presta_Spot_Renderer::get_contrasting_text_color() and product-cards.php).
- * This rule only supplies the non-color button chrome.
- */
+/* Colors are set inline per-render (admin-configured hex, not a fixed
+   palette) - this only supplies the non-color button chrome. */
 .prestaspot-card-link--button {
     display: inline-block;
     padding: 0.5rem 1.1rem;
@@ -88,12 +80,7 @@
     filter: brightness(0.9);
 }
 
-/*
- * List view: rows instead of a card grid. Reuses the same element classes as
- * the grid (.prestaspot-card-image/-title/-description/-link) - only the
- * item wrapper differs - so these are override rules, not a parallel set of
- * element styles.
- */
+/* List view reuses the grid's element classes; only the item wrapper differs. */
 .prestaspot-list {
     display: flex;
     flex-direction: column;

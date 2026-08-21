@@ -37,9 +37,7 @@ class Presta_Spot_Settings
 
     public const VIEW_MODE = 'view_mode';
 
-    // Display mode: 'grid' is the current card-grid layout, 'list' stacks
-    // products as rows (smaller image, text-sized row height). Layout order
-    // and element visibility (above) apply to both.
+    // 'grid' = card grid, 'list' = stacked rows with a smaller image.
     public const VIEW_MODE_GRID = 'grid';
     public const VIEW_MODE_LIST = 'list';
 
@@ -123,9 +121,6 @@ class Presta_Spot_Settings
     }
 
     /**
-     * Resolves a stored/requested layout value to its element render order,
-     * falling back to the default layout for unknown/invalid values.
-     *
      * @return string[]
      */
     public static function get_layout_element_order(string $layout): array
