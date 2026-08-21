@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="PrestaSpot" default="package">
+
+    <property name="project.dir" value="prestaspot"/>
+
+    <!-- Build package - let build-package.php handle version extraction -->
+    <target name="package">
+        <echo message="Running build script to create plugin package..." />
+        <exec executable="php">
+            <arg path="build-package.php"/>
+        </exec>
+    </target>
+
+</project>

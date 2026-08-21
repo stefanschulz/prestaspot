@@ -1,0 +1,32 @@
+{
+    "$schema": "https://schemas.wp.org/trunk/block.json",
+    "apiVersion": 3,
+    "name": "prestaspot/product-list",
+    "title": "PrestaShop Product List",
+    "category": "widgets",
+    "icon": "store",
+    "description": "Display products from a connected PrestaShop store as cards.",
+    "keywords": ["prestashop", "products", "shop", "cards"],
+    "version": "0.1.0",
+    "textdomain": "prestaspot",
+    "attributes": {
+        "productCount": {
+            "type": "number",
+            "default": 8
+        },
+        "categoryId": {
+            "type": "number",
+            "default": 0
+        },
+        "columns": {
+            "type": "number",
+            "default": 4
+        }
+    },
+    "supports": {
+        "html": false,
+        "align": ["wide", "full"]
+    },
+    "editorScript": "file:./index.js",
+    "style": "file:../../assets/css/prestaspot.css"
+}
