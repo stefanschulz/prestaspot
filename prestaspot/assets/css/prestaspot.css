@@ -69,6 +69,71 @@
     text-decoration: none;
 }
 
+/*
+ * List view: rows instead of a card grid. Reuses the same element classes as
+ * the grid (.prestaspot-card-image/-title/-description/-link) - only the
+ * item wrapper differs - so these are override rules, not a parallel set of
+ * element styles.
+ */
+.prestaspot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.prestaspot-list-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+}
+
+.prestaspot-list-item .prestaspot-card-image {
+    flex: 0 0 auto;
+    width: 4.5rem;
+    border-radius: 4px;
+}
+
+/* Name/description stack vertically inside their own column of the row,
+   instead of being direct row children (which would put them side by side). */
+.prestaspot-list-item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.prestaspot-list-item-text .prestaspot-card-title,
+.prestaspot-list-item-text .prestaspot-card-description {
+    padding: 0;
+}
+
+/* No image and/or no text column present (e.g. name-only): the row still has
+   at least the link, so it never collapses to zero height, but otherwise
+   sizes itself to whatever content is there instead of a fixed card height. */
+.prestaspot-list-item > .prestaspot-card-link {
+    flex: 0 0 auto;
+    margin: 0 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .prestaspot-list-item {
+        flex-wrap: wrap;
+    }
+
+    .prestaspot-list-item > .prestaspot-card-link {
+        margin-left: 0;
+        flex-basis: 100%;
+    }
+}
+
 .prestaspot-empty {
     color: #777;
     font-style: italic;

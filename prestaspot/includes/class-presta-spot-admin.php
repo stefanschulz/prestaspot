@@ -109,6 +109,12 @@ class Presta_Spot_Admin
             'sanitize_callback' => array($this, 'sanitize_layout'),
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LAYOUT],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_view_mode', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_view_mode'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
@@ -126,6 +132,13 @@ class Presta_Spot_Admin
         return array_key_exists($input, Presta_Spot_Settings::LAYOUT_ELEMENT_ORDER)
             ? $input
             : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LAYOUT];
+    }
+
+    public function sanitize_view_mode(string $input): string
+    {
+        return in_array($input, Presta_Spot_Settings::VIEW_MODES, true)
+            ? $input
+            : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE];
     }
 
     public function render_settings_page(): void

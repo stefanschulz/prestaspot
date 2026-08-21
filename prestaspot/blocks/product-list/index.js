@@ -15,6 +15,41 @@
         { value: 'name_description_image', order: [ 'name', 'description', 'image' ], label: __( 'Name, Description, Image', 'prestaspot' ) },
     ];
 
+    var VIEW_MODE_OPTIONS = [
+        { value: 'grid', cells: 4, label: __( 'Grid', 'prestaspot' ) },
+        { value: 'list', cells: 3, label: __( 'List', 'prestaspot' ) },
+    ];
+
+    function renderViewModePicker( viewMode, radioGroupName, onChange ) {
+        return el(
+            'div',
+            { className: 'prestaspot-layout-picker' },
+            VIEW_MODE_OPTIONS.map( function ( option ) {
+                return el(
+                    'label',
+                    { key: option.value, className: 'prestaspot-layout-option' },
+                    el( 'input', {
+                        type: 'radio',
+                        name: radioGroupName,
+                        value: option.value,
+                        checked: viewMode === option.value,
+                        onChange: function () {
+                            onChange( option.value );
+                        },
+                    } ),
+                    el(
+                        'span',
+                        { className: 'prestaspot-viewmode-preview prestaspot-viewmode-preview--' + option.value },
+                        Array.from( { length: option.cells } ).map( function ( _, index ) {
+                            return el( 'span', { key: index } );
+                        } )
+                    ),
+                    el( 'span', { className: 'prestaspot-layout-label' }, option.label )
+                );
+            } )
+        );
+    }
+
     function renderLayoutPicker( layout, radioGroupName, onChange ) {
         return el(
             'div',
@@ -62,6 +97,14 @@
                     {},
                     el(
                         PanelBody,
+                        { title: __( 'Display Mode', 'prestaspot' ) },
+                        renderViewModePicker( attributes.viewMode, 'prestaspot-viewmode-' + props.clientId, function ( value ) {
+                            setAttributes( { viewMode: value } );
+                        } ),
+                        el( 'p', { className: 'components-base-control__help' }, __( 'Grid shows products as cards; list stacks them as rows with a smaller image.', 'prestaspot' ) )
+                    ),
+                    el(
+                        PanelBody,
                         { title: __( 'Product List Settings', 'prestaspot' ) },
                         el( RangeControl, {
                             label: __( 'Number of Products', 'prestaspot' ),
@@ -74,6 +117,7 @@
                         } ),
                         el( RangeControl, {
                             label: __( 'Columns', 'prestaspot' ),
+                            help: __( 'Only used in grid display mode.', 'prestaspot' ),
                             value: attributes.columns,
                             onChange: function ( value ) {
                                 setAttributes( { columns: value } );

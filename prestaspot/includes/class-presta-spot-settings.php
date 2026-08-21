@@ -35,6 +35,16 @@ class Presta_Spot_Settings
         self::LAYOUT_NAME_DESCRIPTION_IMAGE => array('name', 'description', 'image'),
     );
 
+    public const VIEW_MODE = 'view_mode';
+
+    // Display mode: 'grid' is the current card-grid layout, 'list' stacks
+    // products as rows (smaller image, text-sized row height). Layout order
+    // and element visibility (above) apply to both.
+    public const VIEW_MODE_GRID = 'grid';
+    public const VIEW_MODE_LIST = 'list';
+
+    const VIEW_MODES = array(self::VIEW_MODE_GRID, self::VIEW_MODE_LIST);
+
     const PRESTASPOT_SETTINGS_DEFAULTS = array(
         self::SHOP_URL => '',
         self::API_KEY => '',
@@ -45,6 +55,7 @@ class Presta_Spot_Settings
         self::SHOW_NAME => true,
         self::SHOW_DESCRIPTION => true,
         self::LAYOUT => self::LAYOUT_IMAGE_NAME_DESCRIPTION,
+        self::VIEW_MODE => self::VIEW_MODE_GRID,
     );
 
     public function __construct() {}
@@ -61,6 +72,7 @@ class Presta_Spot_Settings
             self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
             self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
             self::LAYOUT => $this->get_prestaspot_option(self::LAYOUT),
+            self::VIEW_MODE => $this->get_prestaspot_option(self::VIEW_MODE),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -74,6 +86,9 @@ class Presta_Spot_Settings
         $settings[self::LAYOUT] = array_key_exists($settings[self::LAYOUT], self::LAYOUT_ELEMENT_ORDER)
             ? $settings[self::LAYOUT]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LAYOUT];
+        $settings[self::VIEW_MODE] = in_array($settings[self::VIEW_MODE], self::VIEW_MODES, true)
+            ? $settings[self::VIEW_MODE]
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::VIEW_MODE];
 
         return $settings;
     }

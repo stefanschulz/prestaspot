@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, layout?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, layout?: ?string, view_mode?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -38,6 +38,9 @@ class Presta_Spot_Renderer
         $show_description = array_key_exists('show_description', $args) ? (bool)$args['show_description'] : $settings[Presta_Spot_Settings::SHOW_DESCRIPTION];
         $layout = !empty($args['layout']) ? $args['layout'] : $settings[Presta_Spot_Settings::LAYOUT];
         $element_order = Presta_Spot_Settings::get_layout_element_order($layout);
+        $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)
+            ? $args['view_mode']
+            : $settings[Presta_Spot_Settings::VIEW_MODE];
 
         $products = $this->api->get_products($product_count, $category_id);
 

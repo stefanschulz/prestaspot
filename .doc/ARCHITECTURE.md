@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.4.0
+**Version**: 0.5.0
 
 ---
 
@@ -20,7 +20,7 @@ prestaspot/
 │   ├── class-presta-spot-admin.php          # Settings page (wp-admin), Settings API registration, admin asset enqueue
 │   └── class-presta-spot-frontend.php       # Enqueues assets/css/prestaspot.css on the frontend
 ├── templates/
-│   ├── product-cards.php                    # Card grid markup, shared by shortcode and block
+│   ├── product-cards.php                    # Card grid AND list-row markup (view_mode), shared by shortcode and block
 │   └── settings-page.php                    # Admin settings page markup
 ├── blocks/product-list/
 │   ├── block.json                           # Block metadata + attributes (apiVersion 3)
@@ -91,6 +91,7 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `SHOW_NAME` | `show_name` | `true` | bool |
 | `SHOW_DESCRIPTION` | `show_description` | `true` | bool |
 | `LAYOUT` | `layout` | `image_name_description` | string enum, see below |
+| `VIEW_MODE` | `view_mode` | `grid` | string enum: `grid` or `list`, see below |
 
 `get_all(): array` fetches and sanitizes every option in one call; `get(string $key)` returns a single value via `get_all()`. There is no per-key `get_option()` fast path - simplicity over micro-optimization, since this runs at most once per render.
 
@@ -136,28 +137,40 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `columns`, `show_image`, `show_name`, `show_description`, `layout`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `columns`, `show_image`, `show_name`, `show_description`, `layout`, `view_mode`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
-- **Numeric/string options** (`product_count`, `columns`, `layout`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options.
+- **Numeric/string options** (`product_count`, `columns`, `layout`, `view_mode`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode` additionally validates against `Presta_Spot_Settings::VIEW_MODES` (an unrecognized string falls back to the setting default, same as an empty one).
 - **Boolean options** (`show_image`, `show_name`, `show_description`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
 
-The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
+The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything (including `$view_mode`) to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
 
 ---
 
 ## Card Markup (`templates/product-cards.php`)
 
-For each product, the template iterates `$element_order` and renders whichever of `image` / `name` / `description` is both (a) next in the configured order and (b) enabled via its `$show_*` flag; the "View in shop" link renders unconditionally after the loop.
+The template computes `$prestaspot_visible_elements` once - `$element_order` filtered down to only the elements actually enabled via their `$show_*` flag (not just blanked at render time, *removed*; this matters for the list-mode grouping below). A local closure, `$prestaspot_render_element(string $element, array $product): string`, produces the markup for one element of one product (or `''` if that product has no image/description to show); another, `$prestaspot_render_link`, produces the "View in shop" link. Both the grid and list render paths below call these same two closures, so the actual `<img>`/`<h3>`/`<p>`/`<a>` markup exists exactly once regardless of view mode.
 
-**Why the image isn't in a separate wrapper**: earlier versions had the image in its own container outside a padded "body" div holding name+description. That broke once the `name_image_description` layout needed the image to render *between* the title and the description - image, title and description are now all direct flex children of `.prestaspot-card`, each handling its own spacing in `assets/css/prestaspot.css`, so they can appear in any order. The image stays edge-to-edge (no horizontal padding) in every position; the "View in shop" link uses `margin-top: auto` to stay pinned to the card bottom regardless of how much content precedes it.
+**Grid** (`$view_mode === 'grid'`): straightforward - for each product, loop `$prestaspot_visible_elements` in order and echo each element's markup, then the link.
+
+**List** (`$view_mode === 'list'`): a naive port of the same per-element loop would put every element - image, name, description - as its own sibling in a horizontal flex row, which puts name and description *side by side* instead of stacked, since they're no longer inside a shared vertical "body" the way the grid's `.prestaspot-card` used to have. Instead, `$prestaspot_visible_elements` is walked **once, up front** (not per product) into `$prestaspot_list_groups`: consecutive non-image elements are buffered into one `['type' => 'text', 'elements' => [...]]` group, and each `image` becomes its own `['type' => 'image']` group. For each product, the groups are rendered in order; a `text` group is wrapped in a `.prestaspot-list-item-text` column (name+description stacked *within* that column), while `image` renders directly as its own row-level flex child. Concretely, for the three `layout` values:
+
+| `layout` | Groups produced |
+|---|---|
+| `image_name_description` (default) | `[image]`, `[text: name, description]` - classic thumbnail + text block |
+| `name_image_description` | `[text: name]`, `[image]`, `[text: description]` - three columns, image in the middle |
+| `name_description_image` | `[text: name, description]`, `[image]` - text block + thumbnail on the right |
+
+If `show_image` is off (or a specific product just has no image), that whole `image` group is absent for that render, which also means a `name`+`description` pair that would otherwise have been split by the image (the `name_image_description` case) correctly merges back into one contiguous text group instead of leaving a gap. This is exactly what makes "no image → row sizes itself to the text" (a stated requirement) fall out naturally: there's no reserved image column to begin with, not just an empty one hidden by CSS.
+
+**Why the image isn't in a separate wrapper at the element-styling level**: `assets/css/prestaspot.css` styles `.prestaspot-card-image`/`-title`/`-description`/`-link` as reusable element classes, not nested in a card-specific "body" div - both view modes, and any position the image ends up in via `layout`, share the same four classes. The grid uses `margin-top: auto` on the link to stay pinned to the card bottom (column flex); the list overrides this to `margin-left: auto` (row flex) so the link instead pins to the row's *right* end - see the "List view" block in `prestaspot.css` for the full set of overrides `.prestaspot-list-item` needs (smaller image, `.prestaspot-list-item-text` as its own flex column, reset paddings that assumed a vertical card).
 
 ---
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans) via `shortcode_atts()`; `show_image`/`show_name`/`show_description` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout` and `view_mode`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown".
 
@@ -171,9 +184,14 @@ Registered via `register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `layout`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `layout`, `viewMode`→`view_mode`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute.
 
-**Visual layout picker**: both `templates/settings-page.php` and `blocks/product-list/index.js` render the three layout options as radio inputs wrapped in a styled `<label>` (`.prestaspot-layout-option`), with a small CSS-only preview (`.prestaspot-layout-block--image/name/description`, ordered per `LAYOUT_ELEMENT_ORDER`). Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual state. The two pickers share `assets/css/layout-picker.css` - enqueued directly by `Presta_Spot_Admin::enqueue_admin_scripts()` for the settings page, and via `block.json`'s `editorStyle` field for the block editor. In the block editor, each picker's radio `name` is scoped with the block's `clientId` (`'prestaspot-layout-' + props.clientId`) so multiple block instances on one page can't cross-uncheck each other via native radio-group semantics - defensive, since Gutenberg only mounts one block's `InspectorControls` in the sidebar at a time in practice.
+**Visual pickers**: both `templates/settings-page.php` and `blocks/product-list/index.js` render two radio-based pickers sharing the same `.prestaspot-layout-picker`/`.prestaspot-layout-option` shell (a styled `<label>` wrapping a real radio input, so keyboard/label-click semantics come for free) but different preview content:
+
+- **Card Layout** (element order): `.prestaspot-layout-preview` with `.prestaspot-layout-block--image/name/description` bars, ordered per `LAYOUT_ELEMENT_ORDER`.
+- **Display Mode** (`view_mode`): `.prestaspot-viewmode-preview` with a small 2×2 grid of squares (`--grid`) or three stacked bars (`--list`) - see `VIEW_MODE_OPTIONS` in `index.js` and the parallel markup in `settings-page.php`.
+
+Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual state. Both pickers share `assets/css/layout-picker.css` (the name predates the second picker but wasn't worth renaming/splitting for one more small ruleset) - enqueued directly by `Presta_Spot_Admin::enqueue_admin_scripts()` for the settings page, and via `block.json`'s `editorStyle` field for the block editor. In the block editor, each picker's radio `name` is scoped with the block's `clientId` (e.g. `'prestaspot-layout-' + props.clientId`) so multiple block instances on one page can't cross-uncheck each other via native radio-group semantics - defensive, since Gutenberg only mounts one block's `InspectorControls` in the sidebar at a time in practice.
 
 ---
 

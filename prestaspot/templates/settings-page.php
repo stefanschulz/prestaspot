@@ -95,6 +95,9 @@ if (!defined('ABSPATH')) {
                         max="6"
                         step="1"
                     />
+                    <p class="description">
+                        <?php esc_html_e('Only used in grid display mode.', 'prestaspot'); ?>
+                    </p>
                 </td>
             </tr>
             <tr>
@@ -113,6 +116,40 @@ if (!defined('ABSPATH')) {
                     />
                     <p class="description">
                         <?php esc_html_e('Seconds the product list is cached for before PrestaSpot queries the shop again. Minimum: 60.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Display Mode', 'prestaspot'); ?></th>
+                <td>
+                    <?php
+                    $prestaspot_view_mode_options = array(
+                        Presta_Spot_Settings::VIEW_MODE_GRID => __('Grid', 'prestaspot'),
+                        Presta_Spot_Settings::VIEW_MODE_LIST => __('List', 'prestaspot'),
+                    );
+                    ?>
+                    <div class="prestaspot-layout-picker">
+                        <?php foreach ($prestaspot_view_mode_options as $prestaspot_view_mode_value => $prestaspot_view_mode_label) : ?>
+                            <label class="prestaspot-layout-option">
+                                <input
+                                    type="radio"
+                                    name="prestaspot_view_mode"
+                                    value="<?php echo esc_attr($prestaspot_view_mode_value); ?>"
+                                    <?php checked($settings['view_mode'], $prestaspot_view_mode_value); ?>
+                                />
+                                <span class="prestaspot-viewmode-preview prestaspot-viewmode-preview--<?php echo esc_attr($prestaspot_view_mode_value); ?>">
+                                    <?php if (Presta_Spot_Settings::VIEW_MODE_GRID === $prestaspot_view_mode_value) : ?>
+                                        <span></span><span></span><span></span><span></span>
+                                    <?php else : ?>
+                                        <span></span><span></span><span></span>
+                                    <?php endif; ?>
+                                </span>
+                                <span class="prestaspot-layout-label"><?php echo esc_html($prestaspot_view_mode_label); ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="description">
+                        <?php esc_html_e('Grid shows products as cards; list stacks them as rows with a smaller image.', 'prestaspot'); ?>
                     </p>
                 </td>
             </tr>
@@ -207,5 +244,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes"]</code></p>
 </div>

@@ -1,5 +1,12 @@
 # PrestaSpot - Changelog
 
+## 0.5.0 (2026-08-21) - List Display Mode
+
+- New `view_mode` setting/attribute/shortcode-parameter: `grid` (default, the existing card grid) or `list` (stacked rows with a smaller image). Global default + per-block/shortcode override, same pattern as every other display option.
+- `templates/product-cards.php` now branches on `view_mode`. List mode groups consecutive non-image elements (name/description) into one stacked text column instead of every element being its own row column - so `layout=name_image_description` correctly produces a three-column row (name | image | description) rather than name and description sitting side by side. Hiding the image (or a product simply not having one) merges an otherwise-split name/description back into one contiguous text block and the row shrinks to fit, with no reserved image space left behind.
+- `Presta_Spot_Settings::VIEW_MODES` + `VIEW_MODE_GRID`/`VIEW_MODE_LIST` constants, validated the same way as `layout`.
+- Display Mode gets its own visual picker (grid-icon vs. list-icon cards), sharing the same picker shell as the Card Layout picker introduced in 0.4.0.
+
 ## 0.4.0 (2026-08-21) - Configurable Card Layout
 
 - New `layout` setting/attribute/shortcode-parameter: controls the render order of image, name, and description within each card. Three variants: `image_name_description` (default), `name_image_description`, `name_description_image`. The "View in shop" link always renders last.
