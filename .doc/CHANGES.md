@@ -1,5 +1,10 @@
 # PrestaSpot - Changelog
 
+## 0.11.0 (2026-08-21) - Per-Field Reset Buttons
+
+- Every field on the settings page (except `shop_url`/`api_key`, since resetting a connection credential to empty isn't a "restore my preference" action) now gets a small reset icon next to its label, visible only once that field's current value has actually drifted from the plugin's built-in default - not a permanently-visible button. New `assets/js/settings-page.js` + `assets/css/settings-page.css`, enqueued only on the settings page; no build tooling, hand-written against the DOM like the block editor's `index.js`, but a separate, independent script (plain PHP admin page, not React).
+- `templates/settings-page.php` gained a local `$prestaspot_reset_button()` closure that renders each button with `data-target`/`data-default` attributes; the JS reads those to compare/reset text, number, color, checkbox, and radio-group fields uniformly.
+
 ## 0.10.0 (2026-08-21) - Configurable Price Position
 
 - New `price_position` setting/attribute/shortcode-parameter (`after_name`, default, or `after_description`) controls where the price renders relative to name/description - previously fixed to always sit right after the name. Still not part of `layout` itself (that would multiply the number of layout × price-position combinations); `Presta_Spot_Renderer::render()` now splices `'price'` in after whichever of `name`/`description` the setting points at, instead of always after `name`.

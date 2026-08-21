@@ -9,6 +9,20 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// Renders a small icon button next to a field's label; JS (settings-page.js)
+// shows it only once that field's live value has drifted from $default_value,
+// and resets the field to it on click - see class-presta-spot-admin.php's
+// enqueue_admin_scripts() for where that script is loaded.
+$prestaspot_reset_button = function (string $target_name, string $default_value): string {
+    $label = esc_attr__('Reset to default', 'prestaspot');
+    return sprintf(
+        '<button type="button" class="prestaspot-field-reset" data-target="%1$s" data-default="%2$s" aria-label="%3$s" title="%3$s"><span class="dashicons dashicons-undo" aria-hidden="true"></span></button>',
+        esc_attr($target_name),
+        esc_attr($default_value),
+        $label
+    );
+};
 ?>
 <div class="wrap prestaspot-settings-wrap">
     <h1><?php esc_html_e('PrestaSpot Settings', 'prestaspot'); ?></h1>
@@ -64,6 +78,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_product_count"><?php esc_html_e('Default Product Count', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_product_count', (string)Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::PRODUCT_COUNT]); ?>
                 </th>
                 <td>
                     <input
@@ -83,6 +98,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_columns"><?php esc_html_e('Default Columns', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_columns', (string)Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::COLUMNS]); ?>
                 </th>
                 <td>
                     <input
@@ -103,6 +119,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_cache_duration"><?php esc_html_e('Cache Duration', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_cache_duration', (string)Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::CACHE_DURATION]); ?>
                 </th>
                 <td>
                     <input
@@ -120,7 +137,10 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e('Display Mode', 'prestaspot'); ?></th>
+                <th scope="row">
+                    <?php esc_html_e('Display Mode', 'prestaspot'); ?>
+                    <?php echo $prestaspot_reset_button('prestaspot_view_mode', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE]); ?>
+                </th>
                 <td>
                     <?php
                     $prestaspot_view_mode_options = array(
@@ -154,7 +174,10 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e('Card Layout', 'prestaspot'); ?></th>
+                <th scope="row">
+                    <?php esc_html_e('Card Layout', 'prestaspot'); ?>
+                    <?php echo $prestaspot_reset_button('prestaspot_layout', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LAYOUT]); ?>
+                </th>
                 <td>
                     <?php
                     $prestaspot_layout_labels = array(
@@ -201,6 +224,7 @@ if (!defined('ABSPATH')) {
                             />
                             <?php esc_html_e('Show image', 'prestaspot'); ?>
                         </label>
+                        <?php echo $prestaspot_reset_button('prestaspot_show_image', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_IMAGE] ? '1' : '0'); ?>
                     </p>
                     <p>
                         <label for="prestaspot_show_name">
@@ -214,6 +238,7 @@ if (!defined('ABSPATH')) {
                             />
                             <?php esc_html_e('Show name', 'prestaspot'); ?>
                         </label>
+                        <?php echo $prestaspot_reset_button('prestaspot_show_name', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_NAME] ? '1' : '0'); ?>
                     </p>
                     <p>
                         <label for="prestaspot_show_description">
@@ -227,6 +252,7 @@ if (!defined('ABSPATH')) {
                             />
                             <?php esc_html_e('Show description', 'prestaspot'); ?>
                         </label>
+                        <?php echo $prestaspot_reset_button('prestaspot_show_description', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_DESCRIPTION] ? '1' : '0'); ?>
                     </p>
                     <p>
                         <label for="prestaspot_show_price">
@@ -240,6 +266,7 @@ if (!defined('ABSPATH')) {
                             />
                             <?php esc_html_e('Show price', 'prestaspot'); ?>
                         </label>
+                        <?php echo $prestaspot_reset_button('prestaspot_show_price', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_PRICE] ? '1' : '0'); ?>
                     </p>
                     <p class="description">
                         <?php esc_html_e('Default visibility of product card elements. Can be overridden per block or shortcode.', 'prestaspot'); ?>
@@ -247,7 +274,10 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e('Price Position', 'prestaspot'); ?></th>
+                <th scope="row">
+                    <?php esc_html_e('Price Position', 'prestaspot'); ?>
+                    <?php echo $prestaspot_reset_button('prestaspot_price_position', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::PRICE_POSITION]); ?>
+                </th>
                 <td>
                     <?php
                     $prestaspot_price_position_options = array(
@@ -285,6 +315,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_link_text"><?php esc_html_e('Shop Link Text', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_link_text', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_TEXT]); ?>
                 </th>
                 <td>
                     <input
@@ -301,7 +332,10 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
-                <th scope="row"><?php esc_html_e('Shop Link Style', 'prestaspot'); ?></th>
+                <th scope="row">
+                    <?php esc_html_e('Shop Link Style', 'prestaspot'); ?>
+                    <?php echo $prestaspot_reset_button('prestaspot_link_style', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_STYLE]); ?>
+                </th>
                 <td>
                     <?php
                     $prestaspot_link_style_options = array(
@@ -334,6 +368,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_button_color"><?php esc_html_e('Shop Link Button Color', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_button_color', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::BUTTON_COLOR]); ?>
                 </th>
                 <td>
                     <input
@@ -350,6 +385,7 @@ if (!defined('ABSPATH')) {
             <tr>
                 <th scope="row">
                     <label for="prestaspot_sale_badge_color"><?php esc_html_e('Sale Badge Color', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_sale_badge_color', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SALE_BADGE_COLOR]); ?>
                 </th>
                 <td>
                     <input

@@ -38,6 +38,19 @@ class Presta_Spot_Admin
                 array(),
                 prestaspot_get_asset_version('assets/css/layout-picker.css')
             );
+            wp_enqueue_style(
+                'prestaspot-settings-page',
+                PRESTASPOT_PLUGIN_URL . 'assets/css/settings-page.css',
+                array(),
+                prestaspot_get_asset_version('assets/css/settings-page.css')
+            );
+            wp_enqueue_script(
+                'prestaspot-settings-page',
+                PRESTASPOT_PLUGIN_URL . 'assets/js/settings-page.js',
+                array(),
+                prestaspot_get_asset_version('assets/js/settings-page.js'),
+                true
+            );
         }
     }
 

@@ -1,0 +1,32 @@
+/* Sits next to a field's label; hidden until that field's value drifts from
+   its default (settings-page.js toggles .is-visible), so the settings page
+   isn't cluttered with reset icons for anything left at its default. */
+.prestaspot-field-reset {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin-left: 4px;
+    border: none;
+    background: none;
+    color: #787c82;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.prestaspot-field-reset.is-visible {
+    display: inline-flex;
+}
+
+.prestaspot-field-reset:hover,
+.prestaspot-field-reset:focus {
+    color: #d63638;
+}
+
+.prestaspot-field-reset .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}

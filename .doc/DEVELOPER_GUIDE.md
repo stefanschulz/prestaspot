@@ -128,7 +128,7 @@ Using `show_image` as the reference (a boolean); swap the sentinel logic describ
 
 1. **`includes/class-presta-spot-settings.php`** - add a `public const` key, add it to `PRESTASPOT_SETTINGS_DEFAULTS`, fetch it in `get_all()`, sanitize it there too.
 2. **`includes/class-presta-spot-admin.php`** - `register_setting()` it in `register_settings()` with an appropriate `sanitize_callback`.
-3. **`templates/settings-page.php`** - add the form field. If it's a checkbox, follow the `<input type="hidden" value="0">` + checkbox pattern already used for the other three toggles (see ARCHITECTURE.md's "Checkbox persistence gotcha").
+3. **`templates/settings-page.php`** - add the form field. If it's a checkbox, follow the `<input type="hidden" value="0">` + checkbox pattern already used for the other three toggles (see ARCHITECTURE.md's "Checkbox persistence gotcha"). Also add a `<?php echo $prestaspot_reset_button('prestaspot_<key>', '<default>'); ?>` next to its label (skip this only for `shop_url`/`api_key` - see ARCHITECTURE.md's "Per-Field Reset Buttons").
 4. **`includes/class-presta-spot-renderer.php`** - resolve the value in `render()` using the correct sentinel convention, add it to the docblock's `@param array{...}` shape, and pass it to the template (any variable in scope when `include`-ing is visible to the template - no explicit passing needed).
 5. **`templates/product-cards.php`** (or wherever the new option affects output) - use the resolved value.
 6. **`includes/class-presta-spot-shortcode.php`** - add the shortcode attribute (empty-string/zero sentinel default), and only add it to `$render_args` when the caller actually specified it.

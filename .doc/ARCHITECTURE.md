@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.10.0
+**Version**: 0.11.0
 
 ---
 
@@ -26,9 +26,13 @@ prestaspot/
 │   ├── block.json                           # Block metadata + attributes (apiVersion 3)
 │   ├── index.js                             # Editor script - InspectorControls, ServerSideRender preview
 │   └── index.asset.php                      # Manually declares editor script dependencies (see "No build tooling" below)
-├── assets/css/
-│   ├── prestaspot.css                       # Card grid + card styles (frontend, and block "style")
-│   └── layout-picker.css                    # Visual layout picker (shared by settings page and block editor)
+├── assets/
+│   ├── css/
+│   │   ├── prestaspot.css                   # Card grid + card styles (frontend, and block "style")
+│   │   ├── layout-picker.css                # Visual layout picker (shared by settings page and block editor)
+│   │   └── settings-page.css                # Per-field reset button styling (settings page only)
+│   └── js/
+│       └── settings-page.js                 # Per-field reset button behavior (settings page only)
 ├── LICENSE                                  # Apache License 2.0
 └── build.xml / build-package.php            # Phing target that zips prestaspot/ into prestaspot-<version>.zip (repo root, not inside the plugin folder)
 ```
@@ -299,6 +303,18 @@ Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual 
 Plain WordPress Settings API - the form POSTs to `options.php`, `settings_fields('prestaspot_settings_group')` handles the nonce, each option is `register_setting()`-ed with its own `sanitize_callback`. No custom AJAX handler, no custom save logic. DinkyChat (the reference project) uses a custom AJAX-based settings save instead, for UX polish its larger scope justifies - PrestaSpot doesn't need that yet; a plain form submit is simpler and sufficient for a handful of fields.
 
 **Checkbox persistence gotcha**: an unchecked HTML checkbox submits no value at all, so `options.php` would silently keep the *old* stored value on uncheck instead of saving `false`. Each boolean field therefore has a same-named `<input type="hidden" value="0">` immediately before the checkbox in the DOM - browsers submit both when checked (`0` then `1`; PHP keeps the *last* value for a repeated field name, i.e. `1`) and only the hidden `0` when unchecked. Any new boolean settings field must follow this pattern or unchecking it will silently do nothing.
+
+### Per-Field Reset Buttons (`assets/js/settings-page.js`)
+
+Every field on the settings page except `shop_url`/`api_key` (resetting those to `''` would just wipe the shop connection, not "restore a preference" - not what this is for) gets a small reset icon next to its label, visible only once that field's live value has drifted from the plugin's default - not a static "always there" button. `templates/settings-page.php`'s local closure `$prestaspot_reset_button(string $target_name, string $default_value): string` renders it: a `<button class="prestaspot-field-reset" data-target="..." data-default="...">`, `data-target` matching the field's `name` attribute (not `id` - this is what lets one button address an entire radio *group* by name, not just a single input) and `data-default` carrying that field's `PRESTASPOT_SETTINGS_DEFAULTS` entry as a string (`'1'`/`'0'` for booleans).
+
+All the actual behavior is in `assets/js/settings-page.js` (enqueued only on the settings page, alongside a matching `assets/css/settings-page.css` for the icon's shape/visibility toggle - no color is hardcoded there since `.is-visible` is the only state that matters). For each button, on load and on every `input`/`change` of its target field(s): compare the field's current value against `data-default` and toggle `.is-visible` accordingly. Three value shapes are handled uniformly by `getFields()`/`currentValue()`/`applyDefault()`:
+
+- **Plain input** (text/number/color): `.value` compared/set directly as a string.
+- **Checkbox**: `.checked` mapped to/from `'1'`/`'0'`. `getFields()` explicitly filters out `type === 'hidden'` - `document.getElementsByName()` on a checkbox's name also returns its hidden companion input from the persistence gotcha above, which would otherwise be mistaken for "the field" (a hidden input's `.value` is always `'0'`, so comparisons would be permanently wrong without this filter).
+- **Radio group**: several inputs share one `name`; the checked one's `.value` is the current value, and reset checks whichever radio's `.value` equals `data-default`.
+
+No new build tooling, no dependency on the block editor's JS - this is a separate, much smaller vanilla script scoped to the admin settings page only, following the same "hand-written against the DOM, no framework" approach as `blocks/product-list/index.js` (though for a plain PHP admin page rather than a React-based block, there's no shared code between the two - they solve different problems).
 
 ---
 
