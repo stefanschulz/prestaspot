@@ -109,3 +109,36 @@
     background: #c3c4c7;
     border-radius: 2px;
 }
+
+/*
+ * Link style picker (plain link vs. button): same picker shell again. The
+ * button swatch's background color is set inline (it mirrors the actual
+ * configured button color, not a fixed preview color) - see
+ * templates/settings-page.php and blocks/product-list/index.js.
+ */
+.prestaspot-linkstyle-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 44px;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.prestaspot-linkstyle-preview--link span {
+    display: block;
+    width: 60%;
+    height: 0;
+    border-bottom: 2px solid #50575e;
+}
+
+.prestaspot-linkstyle-preview--button span {
+    display: block;
+    width: 70%;
+    height: 20px;
+    border-radius: 4px;
+    background: #2271b1;
+}

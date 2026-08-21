@@ -115,6 +115,24 @@ class Presta_Spot_Admin
             'sanitize_callback' => array($this, 'sanitize_view_mode'),
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_link_text', array(
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_TEXT],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_link_style', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_link_style'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_STYLE],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_button_color', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_button_color'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::BUTTON_COLOR],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
@@ -139,6 +157,18 @@ class Presta_Spot_Admin
         return in_array($input, Presta_Spot_Settings::VIEW_MODES, true)
             ? $input
             : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE];
+    }
+
+    public function sanitize_link_style(string $input): string
+    {
+        return in_array($input, Presta_Spot_Settings::LINK_STYLES, true)
+            ? $input
+            : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_STYLE];
+    }
+
+    public function sanitize_button_color(string $input): string
+    {
+        return sanitize_hex_color($input) ?: Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::BUTTON_COLOR];
     }
 
     public function render_settings_page(): void

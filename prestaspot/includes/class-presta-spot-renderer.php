@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, layout?: ?string, view_mode?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -41,11 +41,34 @@ class Presta_Spot_Renderer
         $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)
             ? $args['view_mode']
             : $settings[Presta_Spot_Settings::VIEW_MODE];
+        // '' (both instance and setting unset) is resolved to the built-in
+        // translated label by the template, not here - see product-cards.php.
+        $link_text = !empty($args['link_text']) ? $args['link_text'] : $settings[Presta_Spot_Settings::LINK_TEXT];
+        $link_style = !empty($args['link_style']) && in_array($args['link_style'], Presta_Spot_Settings::LINK_STYLES, true)
+            ? $args['link_style']
+            : $settings[Presta_Spot_Settings::LINK_STYLE];
+        $button_color = !empty($args['button_color'])
+            ? (sanitize_hex_color($args['button_color']) ?: $settings[Presta_Spot_Settings::BUTTON_COLOR])
+            : $settings[Presta_Spot_Settings::BUTTON_COLOR];
 
         $products = $this->api->get_products($product_count, $category_id);
 
         ob_start();
         include PRESTASPOT_PLUGIN_DIR . 'templates/product-cards.php';
         return ob_get_clean();
+    }
+
+    /**
+     * Picks readable button text color (black/white) for an admin-configured
+     * background, so contrast can't regress no matter what color is set.
+     */
+    public static function get_contrasting_text_color(string $hex_color): string
+    {
+        $hex = ltrim($hex_color, '#');
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        $brightness = ($r * 299 + $g * 587 + $b * 114) / 1000;
+        return $brightness > 128 ? '#000000' : '#ffffff';
     }
 }

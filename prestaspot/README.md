@@ -18,15 +18,15 @@ Lightweight PrestaShop integration for WordPress. Displays content from a connec
 
 ### Block
 
-Add the **PrestaShop Product List** block anywhere in the block editor. Display mode, product count, columns, category filter, card layout, and which card elements (image, name, description) to show are configurable in the block sidebar.
+Add the **PrestaShop Product List** block anywhere in the block editor. Display mode, product count, columns, category filter, card layout, which card elements (image, name, description) to show, and the shop link's label/style/color are all configurable in the block sidebar.
 
 ### Shortcode
 
 ```
-[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes"]
+[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" link_text="Shop now" link_style="button" button_color="#2271b1"]
 ```
 
-All attributes are optional; omitted ones fall back to the defaults configured on the settings page. `category_id="0"` (the default) shows products regardless of category. `show_image`/`show_name`/`show_description` accept `yes`/`no` (also `1`/`0`, `true`/`false`). `layout` is one of `image_name_description` (default), `name_image_description`, or `name_description_image` — the element render order within each card/row; the "View in shop" link always renders last, and hidden elements (via the `show_*` flags) are simply skipped. `view_mode` is `grid` (default, `columns` applies) or `list` (stacked rows with a smaller image; `columns` is ignored).
+All attributes are optional; omitted ones fall back to the defaults configured on the settings page. `category_id="0"` (the default) shows products regardless of category. `show_image`/`show_name`/`show_description` accept `yes`/`no` (also `1`/`0`, `true`/`false`). `layout` is one of `image_name_description` (default), `name_image_description`, or `name_description_image` — the element render order within each card/row; the shop link always renders last, and hidden elements (via the `show_*` flags) are simply skipped. `view_mode` is `grid` (default, `columns` applies) or `list` (stacked rows with a smaller image; `columns` is ignored). `link_text` sets the shop link's label (defaults to "View in shop"); `link_style` is `link` (default, plain text) or `button` (filled, using `button_color` as the background — text color is picked automatically for contrast).
 
 ## License
 

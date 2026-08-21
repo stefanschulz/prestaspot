@@ -233,6 +233,71 @@ if (!defined('ABSPATH')) {
                     </p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row">
+                    <label for="prestaspot_link_text"><?php esc_html_e('Shop Link Text', 'prestaspot'); ?></label>
+                </th>
+                <td>
+                    <input
+                        type="text"
+                        id="prestaspot_link_text"
+                        name="prestaspot_link_text"
+                        value="<?php echo esc_attr($settings['link_text']); ?>"
+                        class="regular-text"
+                        placeholder="<?php echo esc_attr__('View in shop', 'prestaspot'); ?>"
+                    />
+                    <p class="description">
+                        <?php esc_html_e('Leave empty to use the default label shown above as a placeholder.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Shop Link Style', 'prestaspot'); ?></th>
+                <td>
+                    <?php
+                    $prestaspot_link_style_options = array(
+                        Presta_Spot_Settings::LINK_STYLE_LINK => __('Link', 'prestaspot'),
+                        Presta_Spot_Settings::LINK_STYLE_BUTTON => __('Button', 'prestaspot'),
+                    );
+                    ?>
+                    <div class="prestaspot-layout-picker">
+                        <?php foreach ($prestaspot_link_style_options as $prestaspot_link_style_value => $prestaspot_link_style_label) : ?>
+                            <label class="prestaspot-layout-option">
+                                <input
+                                    type="radio"
+                                    name="prestaspot_link_style"
+                                    value="<?php echo esc_attr($prestaspot_link_style_value); ?>"
+                                    <?php checked($settings['link_style'], $prestaspot_link_style_value); ?>
+                                />
+                                <span class="prestaspot-linkstyle-preview prestaspot-linkstyle-preview--<?php echo esc_attr($prestaspot_link_style_value); ?>">
+                                    <?php if (Presta_Spot_Settings::LINK_STYLE_BUTTON === $prestaspot_link_style_value) : ?>
+                                        <span style="background-color: <?php echo esc_attr($settings['button_color']); ?>;"></span>
+                                    <?php else : ?>
+                                        <span></span>
+                                    <?php endif; ?>
+                                </span>
+                                <span class="prestaspot-layout-label"><?php echo esc_html($prestaspot_link_style_label); ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="prestaspot_button_color"><?php esc_html_e('Shop Link Button Color', 'prestaspot'); ?></label>
+                </th>
+                <td>
+                    <input
+                        type="color"
+                        id="prestaspot_button_color"
+                        name="prestaspot_button_color"
+                        value="<?php echo esc_attr($settings['button_color']); ?>"
+                    />
+                    <p class="description">
+                        <?php esc_html_e('Only used when Shop Link Style is Button. Text color is picked automatically for contrast.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
         </table>
 
         <?php submit_button(__('Save Settings', 'prestaspot')); ?>
@@ -244,5 +309,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" link_text="Shop now" link_style="button" button_color="#2271b1"]</code></p>
 </div>

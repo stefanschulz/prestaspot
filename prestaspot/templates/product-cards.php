@@ -7,6 +7,9 @@
  * @var bool $show_description
  * @var string[] $element_order Render order of 'image'/'name'/'description'; the "View in shop" link always renders last.
  * @var string $view_mode 'grid' (card grid) or 'list' (stacked rows)
+ * @var string $link_text Custom shop-link label, or '' to use the built-in translated default
+ * @var string $link_style 'link' (plain text link) or 'button'
+ * @var string $button_color Hex color, only used when $link_style is 'button'
  */
 
 if (!defined('ABSPATH')) {
@@ -53,11 +56,24 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
     return '';
 };
 
-$prestaspot_render_link = function (array $product): string {
+$prestaspot_link_label = '' !== $link_text ? $link_text : __('View in shop', 'prestaspot');
+
+$prestaspot_render_link = function (array $product) use ($prestaspot_link_label, $link_style, $button_color): string {
+    $classes = 'prestaspot-card-link';
+    $style_attr = '';
+
+    if ('button' === $link_style) {
+        $classes .= ' prestaspot-card-link--button';
+        $text_color = Presta_Spot_Renderer::get_contrasting_text_color($button_color);
+        $style_attr = sprintf(' style="background-color: %1$s; color: %2$s;"', esc_attr($button_color), esc_attr($text_color));
+    }
+
     return sprintf(
-        '<a class="prestaspot-card-link" href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+        '<a class="%1$s" href="%2$s" target="_blank" rel="noopener noreferrer"%3$s>%4$s</a>',
+        esc_attr($classes),
         esc_url($product['permalink']),
-        esc_html__('View in shop', 'prestaspot')
+        $style_attr,
+        esc_html($prestaspot_link_label)
     );
 };
 

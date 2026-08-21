@@ -3,6 +3,7 @@
     var __ = i18n.__;
     var registerBlockType = blocks.registerBlockType;
     var InspectorControls = blockEditor.InspectorControls;
+    var PanelColorSettings = blockEditor.PanelColorSettings;
     var useBlockProps = blockEditor.useBlockProps;
     var PanelBody = components.PanelBody;
     var RangeControl = components.RangeControl;
@@ -19,6 +20,39 @@
         { value: 'grid', cells: 4, label: __( 'Grid', 'prestaspot' ) },
         { value: 'list', cells: 3, label: __( 'List', 'prestaspot' ) },
     ];
+
+    var LINK_STYLE_OPTIONS = [
+        { value: 'link', label: __( 'Link', 'prestaspot' ) },
+        { value: 'button', label: __( 'Button', 'prestaspot' ) },
+    ];
+
+    function renderLinkStylePicker( linkStyle, buttonColor, radioGroupName, onChange ) {
+        return el(
+            'div',
+            { className: 'prestaspot-layout-picker' },
+            LINK_STYLE_OPTIONS.map( function ( option ) {
+                return el(
+                    'label',
+                    { key: option.value, className: 'prestaspot-layout-option' },
+                    el( 'input', {
+                        type: 'radio',
+                        name: radioGroupName,
+                        value: option.value,
+                        checked: linkStyle === option.value,
+                        onChange: function () {
+                            onChange( option.value );
+                        },
+                    } ),
+                    el(
+                        'span',
+                        { className: 'prestaspot-linkstyle-preview prestaspot-linkstyle-preview--' + option.value },
+                        el( 'span', 'button' === option.value ? { style: { backgroundColor: buttonColor } } : {} )
+                    ),
+                    el( 'span', { className: 'prestaspot-layout-label' }, option.label )
+                );
+            } )
+        );
+    }
 
     function renderViewModePicker( viewMode, radioGroupName, onChange ) {
         return el(
@@ -167,7 +201,35 @@
                                 setAttributes( { showDescription: value } );
                             },
                         } )
-                    )
+                    ),
+                    el(
+                        PanelBody,
+                        { title: __( 'Shop Link', 'prestaspot' ) },
+                        el( TextControl, {
+                            label: __( 'Label', 'prestaspot' ),
+                            value: attributes.linkText,
+                            placeholder: __( 'View in shop', 'prestaspot' ),
+                            onChange: function ( value ) {
+                                setAttributes( { linkText: value } );
+                            },
+                        } ),
+                        renderLinkStylePicker( attributes.linkStyle, attributes.buttonColor, 'prestaspot-linkstyle-' + props.clientId, function ( value ) {
+                            setAttributes( { linkStyle: value } );
+                        } )
+                    ),
+                    'button' === attributes.linkStyle && el( PanelColorSettings, {
+                        title: __( 'Shop Link Button Color', 'prestaspot' ),
+                        initialOpen: false,
+                        colorSettings: [
+                            {
+                                value: attributes.buttonColor,
+                                onChange: function ( color ) {
+                                    setAttributes( { buttonColor: color || '#2271b1' } );
+                                },
+                                label: __( 'Background Color', 'prestaspot' ),
+                            },
+                        ],
+                    } )
                 ),
                 el( ServerSideRender, {
                     block: 'prestaspot/product-list',

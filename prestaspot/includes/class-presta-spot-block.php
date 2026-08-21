@@ -47,6 +47,9 @@ class Presta_Spot_Block
             'show_description' => (bool)($attributes['showDescription'] ?? true),
             'layout' => (string)($attributes['layout'] ?? ''),
             'view_mode' => (string)($attributes['viewMode'] ?? ''),
+            'link_text' => (string)($attributes['linkText'] ?? ''),
+            'link_style' => (string)($attributes['linkStyle'] ?? ''),
+            'button_color' => (string)($attributes['buttonColor'] ?? ''),
         ));
     }
 }

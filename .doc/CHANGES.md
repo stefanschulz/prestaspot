@@ -1,5 +1,13 @@
 # PrestaSpot - Changelog
 
+## 0.6.0 (2026-08-21) - Configurable Shop Link
+
+- New `link_text` / `link_style` / `button_color` setting/attribute/shortcode-parameter trio for the shop link (previously a hardcoded "View in shop" text link). Global default + per-block/shortcode override, same pattern as every other display option.
+- `link_text` empty means "use the built-in translated label" - a class constant can't hold a `__()`-translated string, so the "View in shop" fallback is applied in `templates/product-cards.php`, not `Presta_Spot_Settings`.
+- `link_style` is `link` (default, unchanged appearance) or `button` (filled, background = `button_color`). New `Presta_Spot_Renderer::get_contrasting_text_color()` static method picks black/white button text for contrast - the same brightness formula DinkyChat uses for its mention-highlight colors.
+- Shop Link Style gets its own visual picker (underlined-text vs. filled-swatch preview, the swatch reflecting the actually-configured `button_color`), sharing the picker shell introduced in 0.4.0/0.5.0.
+- Button color itself uses `wp.blockEditor.PanelColorSettings` in the block inspector (shown only when Link Style is Button) and a native `<input type="color">` on the settings page.
+
 ## 0.5.0 (2026-08-21) - List Display Mode
 
 - New `view_mode` setting/attribute/shortcode-parameter: `grid` (default, the existing card grid) or `list` (stacked rows with a smaller image). Global default + per-block/shortcode override, same pattern as every other display option.

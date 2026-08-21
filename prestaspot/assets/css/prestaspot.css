@@ -70,6 +70,25 @@
 }
 
 /*
+ * Button variant: background/text color are set inline per-render (they come
+ * from an admin-configured hex color, not a fixed palette - see
+ * Presta_Spot_Renderer::get_contrasting_text_color() and product-cards.php).
+ * This rule only supplies the non-color button chrome.
+ */
+.prestaspot-card-link--button {
+    display: inline-block;
+    padding: 0.5rem 1.1rem;
+    border-radius: 4px;
+    text-align: center;
+    transition: filter 0.15s ease;
+}
+
+.prestaspot-card-link--button:hover,
+.prestaspot-card-link--button:focus-visible {
+    filter: brightness(0.9);
+}
+
+/*
  * List view: rows instead of a card grid. Reuses the same element classes as
  * the grid (.prestaspot-card-image/-title/-description/-link) - only the
  * item wrapper differs - so these are override rules, not a parallel set of

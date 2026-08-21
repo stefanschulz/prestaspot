@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.5.0
+**Version**: 0.6.0
 
 ---
 
@@ -92,6 +92,9 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `SHOW_DESCRIPTION` | `show_description` | `true` | bool |
 | `LAYOUT` | `layout` | `image_name_description` | string enum, see below |
 | `VIEW_MODE` | `view_mode` | `grid` | string enum: `grid` or `list`, see below |
+| `LINK_TEXT` | `link_text` | `''` | string, `sanitize_text_field()`. Empty means "use the built-in translated label" - see the shop link section below |
+| `LINK_STYLE` | `link_style` | `link` | string enum: `link` or `button` |
+| `BUTTON_COLOR` | `button_color` | `#2271b1` | hex color, `sanitize_hex_color()`; only used when `LINK_STYLE` is `button` |
 
 `get_all(): array` fetches and sanitizes every option in one call; `get(string $key)` returns a single value via `get_all()`. There is no per-key `get_option()` fast path - simplicity over micro-optimization, since this runs at most once per render.
 
@@ -137,14 +140,16 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `columns`, `show_image`, `show_name`, `show_description`, `layout`, `view_mode`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `columns`, `show_image`, `show_name`, `show_description`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
-- **Numeric/string options** (`product_count`, `columns`, `layout`, `view_mode`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode` additionally validates against `Presta_Spot_Settings::VIEW_MODES` (an unrecognized string falls back to the setting default, same as an empty one).
+- **Numeric/string options** (`product_count`, `columns`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style` additionally validate against their `VIEW_MODES`/`LINK_STYLES` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color` re-validates via `sanitize_hex_color()` since it can arrive from an untrusted shortcode attribute.
 - **Boolean options** (`show_image`, `show_name`, `show_description`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
 
-The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything (including `$view_mode`) to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
+`link_text` has a further wrinkle: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized) - a PHP class constant can't hold a `__()`-translated string, so the built-in "View in shop" label is applied by the template, not the renderer (see below).
+
+The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
 
 ---
 
@@ -166,11 +171,23 @@ If `show_image` is off (or a specific product just has no image), that whole `im
 
 **Why the image isn't in a separate wrapper at the element-styling level**: `assets/css/prestaspot.css` styles `.prestaspot-card-image`/`-title`/`-description`/`-link` as reusable element classes, not nested in a card-specific "body" div - both view modes, and any position the image ends up in via `layout`, share the same four classes. The grid uses `margin-top: auto` on the link to stay pinned to the card bottom (column flex); the list overrides this to `margin-left: auto` (row flex) so the link instead pins to the row's *right* end - see the "List view" block in `prestaspot.css` for the full set of overrides `.prestaspot-list-item` needs (smaller image, `.prestaspot-list-item-text` as its own flex column, reset paddings that assumed a vertical card).
 
+### Shop Link (`$prestaspot_render_link`)
+
+Built once per render (not inside the element closure above), since its label/style/color don't vary by product:
+
+```php
+$prestaspot_link_label = '' !== $link_text ? $link_text : __('View in shop', 'prestaspot');
+```
+
+This is where the translated-default fallback described in the Renderer section actually applies - `$link_text` reaching the template as `''` means neither the instance nor the setting customized it.
+
+When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--button` class and an inline `style="background-color: ...; color: ...;"` - the background is the admin-configured `$button_color` directly, and the text color comes from `Presta_Spot_Renderer::get_contrasting_text_color($button_color)`, a static method (not tied to any instance) so the template can call it without holding a `Presta_Spot_Renderer` object. Its brightness formula (`(r*299 + g*587 + b*114) / 1000`, threshold 128) is carried over unchanged from `Dinky_Chat::get_contrasting_text_color()` in the reference project, which uses it for the same purpose (picking readable text over an admin-configured background color). Plain `link` style gets neither the class nor any inline style - it's styled purely via the static `.prestaspot-card-link` rule in `prestaspot.css`.
+
 ---
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout` and `view_mode`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `view_mode`, `link_text`, `link_style`, `button_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown".
 
@@ -184,14 +201,17 @@ Registered via `register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `layout`, `viewMode`→`view_mode`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block.
 
-**Visual pickers**: both `templates/settings-page.php` and `blocks/product-list/index.js` render two radio-based pickers sharing the same `.prestaspot-layout-picker`/`.prestaspot-layout-option` shell (a styled `<label>` wrapping a real radio input, so keyboard/label-click semantics come for free) but different preview content:
+**Visual pickers**: both `templates/settings-page.php` and `blocks/product-list/index.js` render three radio-based pickers sharing the same `.prestaspot-layout-picker`/`.prestaspot-layout-option` shell (a styled `<label>` wrapping a real radio input, so keyboard/label-click semantics come for free) but different preview content:
 
 - **Card Layout** (element order): `.prestaspot-layout-preview` with `.prestaspot-layout-block--image/name/description` bars, ordered per `LAYOUT_ELEMENT_ORDER`.
 - **Display Mode** (`view_mode`): `.prestaspot-viewmode-preview` with a small 2×2 grid of squares (`--grid`) or three stacked bars (`--list`) - see `VIEW_MODE_OPTIONS` in `index.js` and the parallel markup in `settings-page.php`.
+- **Shop Link Style** (`link_style`): `.prestaspot-linkstyle-preview` with an underlined bar (`--link`) or a filled swatch (`--button`) - the button swatch's background is set inline to the *actual currently-configured* `button_color`, not a fixed preview color, so the picker doubles as a live color check.
 
-Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual state. Both pickers share `assets/css/layout-picker.css` (the name predates the second picker but wasn't worth renaming/splitting for one more small ruleset) - enqueued directly by `Presta_Spot_Admin::enqueue_admin_scripts()` for the settings page, and via `block.json`'s `editorStyle` field for the block editor. In the block editor, each picker's radio `name` is scoped with the block's `clientId` (e.g. `'prestaspot-layout-' + props.clientId`) so multiple block instances on one page can't cross-uncheck each other via native radio-group semantics - defensive, since Gutenberg only mounts one block's `InspectorControls` in the sidebar at a time in practice.
+Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual state. All three pickers share `assets/css/layout-picker.css` (the name predates the later pickers but wasn't worth renaming/splitting for a few more small rulesets) - enqueued directly by `Presta_Spot_Admin::enqueue_admin_scripts()` for the settings page, and via `block.json`'s `editorStyle` field for the block editor. In the block editor, each picker's radio `name` is scoped with the block's `clientId` (e.g. `'prestaspot-layout-' + props.clientId`) so multiple block instances on one page can't cross-uncheck each other via native radio-group semantics - defensive, since Gutenberg only mounts one block's `InspectorControls` in the sidebar at a time in practice.
+
+**Button color control**: unlike the other pickers, the actual color value is set via `wp.blockEditor.PanelColorSettings` (the same component core blocks like Paragraph/Button use for their color settings), not a custom control - unlike a 2-3 option enum, "pick any color" isn't a good fit for the visual-card-picker pattern. It's rendered as its own panel, conditionally (`'button' === attributes.linkStyle && el(PanelColorSettings, {...})`) - only shown once Link Style is set to Button. The settings page (plain PHP form, no reactive show/hide) instead always shows the native `<input type="color">` field with a "only used when Shop Link Style is Button" description, matching how `columns`/`view_mode` handle the same kind of conditional relevance.
 
 ---
 
