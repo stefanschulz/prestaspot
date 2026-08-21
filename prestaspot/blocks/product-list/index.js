@@ -1,27 +1,27 @@
 ( function ( blocks, element, blockEditor, components, ServerSideRender, i18n ) {
-    var el = element.createElement;
-    var __ = i18n.__;
-    var registerBlockType = blocks.registerBlockType;
-    var InspectorControls = blockEditor.InspectorControls;
-    var PanelColorSettings = blockEditor.PanelColorSettings;
-    var useBlockProps = blockEditor.useBlockProps;
-    var PanelBody = components.PanelBody;
-    var RangeControl = components.RangeControl;
-    var TextControl = components.TextControl;
-    var ToggleControl = components.ToggleControl;
+    const el = element.createElement;
+    const __ = i18n.__;
+    const registerBlockType = blocks.registerBlockType;
+    const InspectorControls = blockEditor.InspectorControls;
+    const PanelColorSettings = blockEditor.PanelColorSettings;
+    const useBlockProps = blockEditor.useBlockProps;
+    const PanelBody = components.PanelBody;
+    const RangeControl = components.RangeControl;
+    const TextControl = components.TextControl;
+    const ToggleControl = components.ToggleControl;
 
-    var LAYOUT_OPTIONS = [
+    const LAYOUT_OPTIONS = [
         { value: 'image_name_description', order: [ 'image', 'name', 'description' ], label: __( 'Image, Name, Description', 'prestaspot' ) },
         { value: 'name_image_description', order: [ 'name', 'image', 'description' ], label: __( 'Name, Image, Description', 'prestaspot' ) },
         { value: 'name_description_image', order: [ 'name', 'description', 'image' ], label: __( 'Name, Description, Image', 'prestaspot' ) },
     ];
 
-    var VIEW_MODE_OPTIONS = [
+    const VIEW_MODE_OPTIONS = [
         { value: 'grid', cells: 4, label: __( 'Grid', 'prestaspot' ) },
         { value: 'list', cells: 3, label: __( 'List', 'prestaspot' ) },
     ];
 
-    var LINK_STYLE_OPTIONS = [
+    const LINK_STYLE_OPTIONS = [
         { value: 'link', label: __( 'Link', 'prestaspot' ) },
         { value: 'button', label: __( 'Button', 'prestaspot' ) },
     ];
@@ -119,9 +119,9 @@
 
     registerBlockType( 'prestaspot/product-list', {
         edit: function ( props ) {
-            var attributes = props.attributes;
-            var setAttributes = props.setAttributes;
-            var blockProps = useBlockProps();
+            const attributes = props.attributes;
+            const setAttributes = props.setAttributes;
+            const blockProps = useBlockProps();
 
             return el(
                 'div',
