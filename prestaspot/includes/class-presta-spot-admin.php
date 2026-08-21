@@ -110,6 +110,12 @@ class Presta_Spot_Admin
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_PRICE],
         ));
 
+        register_setting('prestaspot_settings_group', 'prestaspot_price_position', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_price_position'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::PRICE_POSITION],
+        ));
+
         register_setting('prestaspot_settings_group', 'prestaspot_layout', array(
             'type' => 'string',
             'sanitize_callback' => array($this, 'sanitize_layout'),
@@ -139,6 +145,12 @@ class Presta_Spot_Admin
             'sanitize_callback' => array($this, 'sanitize_button_color'),
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::BUTTON_COLOR],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_sale_badge_color', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_sale_badge_color'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SALE_BADGE_COLOR],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
@@ -149,6 +161,13 @@ class Presta_Spot_Admin
     public function sanitize_boolean(mixed $input): bool
     {
         return !empty($input);
+    }
+
+    public function sanitize_price_position(string $input): string
+    {
+        return in_array($input, Presta_Spot_Settings::PRICE_POSITIONS, true)
+            ? $input
+            : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::PRICE_POSITION];
     }
 
     public function sanitize_layout(string $input): string
@@ -175,6 +194,11 @@ class Presta_Spot_Admin
     public function sanitize_button_color(string $input): string
     {
         return sanitize_hex_color($input) ?: Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::BUTTON_COLOR];
+    }
+
+    public function sanitize_sale_badge_color(string $input): string
+    {
+        return sanitize_hex_color($input) ?: Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SALE_BADGE_COLOR];
     }
 
     public function render_settings_page(): void

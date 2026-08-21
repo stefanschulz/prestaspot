@@ -11,23 +11,36 @@
  * @var string $link_text Custom shop-link label, or '' to use the built-in translated default
  * @var string $link_style 'link' (plain text link) or 'button'
  * @var string $button_color Hex color, only used when $link_style is 'button'
+ * @var string $sale_badge_color Hex color for the sale ribbon/badge background
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
+// Text color picked for contrast against the admin-configured badge/ribbon
+// background, same approach as the shop link button below.
+$prestaspot_sale_badge_text_color = Presta_Spot_Renderer::get_contrasting_text_color($sale_badge_color);
+$prestaspot_sale_badge_style = sprintf(' style="background-color: %1$s; color: %2$s;"', esc_attr($sale_badge_color), esc_attr($prestaspot_sale_badge_text_color));
+
 // Shared by both the grid and list render paths below, so the markup only exists once.
-$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description, $show_price): string {
+$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description, $show_price, $prestaspot_sale_badge_style): string {
     if ('image' === $element) {
         if (!$show_image || empty($product['image_url'])) {
             return '';
         }
+        // The ribbon lives inside the image link (not as a page-level badge)
+        // so it can visually wrap the photo's corner; .prestaspot-card-image's
+        // overflow:hidden clips the rotated strip to the image bounds.
+        $ribbon = !empty($product['on_sale'])
+            ? sprintf('<span class="prestaspot-card-ribbon"%1$s>%2$s</span>', $prestaspot_sale_badge_style, esc_html__('Sale', 'prestaspot'))
+            : '';
         return sprintf(
-            '<a class="prestaspot-card-image" href="%1$s" target="_blank" rel="noopener noreferrer"><img src="%2$s" alt="%3$s" loading="lazy" /></a>',
+            '<a class="prestaspot-card-image" href="%1$s" target="_blank" rel="noopener noreferrer"><img src="%2$s" alt="%3$s" loading="lazy" />%4$s</a>',
             esc_url($product['permalink']),
             esc_url($product['image_url']),
-            esc_attr($product['name'])
+            esc_attr($product['name']),
+            $ribbon
         );
     }
 
@@ -57,6 +70,17 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
     }
 
     return '';
+};
+
+// Fallback for when there's no image to wrap a ribbon around (image hidden,
+// or the product just has none) - independent of $element_order otherwise,
+// always shown for a product PrestaShop flags on_sale, regardless of layout
+// or the on_sale filter argument.
+$prestaspot_render_badge = function (array $product) use ($show_image, $prestaspot_sale_badge_style): string {
+    if (empty($product['on_sale']) || ($show_image && !empty($product['image_url']))) {
+        return '';
+    }
+    return sprintf('<span class="prestaspot-card-badge"%1$s>%2$s</span>', $prestaspot_sale_badge_style, esc_html__('Sale', 'prestaspot'));
 };
 
 $prestaspot_link_label = '' !== $link_text ? $link_text : __('View in shop', 'prestaspot');
@@ -130,6 +154,7 @@ $prestaspot_container_style = $prestaspot_is_list ? '' : ' style="--prestaspot-c
     <?php elseif ($prestaspot_is_list) : ?>
         <?php foreach ($products as $product) : ?>
             <div class="<?php echo esc_attr($prestaspot_item_class); ?>">
+                <?php echo $prestaspot_render_badge($product); ?>
                 <?php foreach ($prestaspot_list_groups as $prestaspot_group) : ?>
                     <?php if ('image' === $prestaspot_group['type']) : ?>
                         <?php echo $prestaspot_render_element('image', $product); ?>
@@ -147,6 +172,7 @@ $prestaspot_container_style = $prestaspot_is_list ? '' : ' style="--prestaspot-c
     <?php else : ?>
         <?php foreach ($products as $product) : ?>
             <div class="<?php echo esc_attr($prestaspot_item_class); ?>">
+                <?php echo $prestaspot_render_badge($product); ?>
                 <?php foreach ($prestaspot_visible_elements as $prestaspot_element) : ?>
                     <?php echo $prestaspot_render_element($prestaspot_element, $product); ?>
                 <?php endforeach; ?>

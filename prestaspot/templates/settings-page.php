@@ -247,6 +247,42 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
+                <th scope="row"><?php esc_html_e('Price Position', 'prestaspot'); ?></th>
+                <td>
+                    <?php
+                    $prestaspot_price_position_options = array(
+                        Presta_Spot_Settings::PRICE_POSITION_AFTER_NAME => __('After Name', 'prestaspot'),
+                        Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION => __('After Description', 'prestaspot'),
+                    );
+                    $prestaspot_price_position_previews = array(
+                        Presta_Spot_Settings::PRICE_POSITION_AFTER_NAME => array('name', 'price', 'description'),
+                        Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION => array('name', 'description', 'price'),
+                    );
+                    ?>
+                    <div class="prestaspot-layout-picker">
+                        <?php foreach ($prestaspot_price_position_options as $prestaspot_price_position_value => $prestaspot_price_position_label) : ?>
+                            <label class="prestaspot-layout-option">
+                                <input
+                                    type="radio"
+                                    name="prestaspot_price_position"
+                                    value="<?php echo esc_attr($prestaspot_price_position_value); ?>"
+                                    <?php checked($settings['price_position'], $prestaspot_price_position_value); ?>
+                                />
+                                <span class="prestaspot-layout-preview">
+                                    <?php foreach ($prestaspot_price_position_previews[$prestaspot_price_position_value] as $prestaspot_element) : ?>
+                                        <span class="prestaspot-layout-block prestaspot-layout-block--<?php echo esc_attr($prestaspot_element); ?>"></span>
+                                    <?php endforeach; ?>
+                                </span>
+                                <span class="prestaspot-layout-label"><?php echo esc_html($prestaspot_price_position_label); ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="description">
+                        <?php esc_html_e('Where the price renders relative to name/description. Only used when "Show price" is enabled.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row">
                     <label for="prestaspot_link_text"><?php esc_html_e('Shop Link Text', 'prestaspot'); ?></label>
                 </th>
@@ -311,6 +347,22 @@ if (!defined('ABSPATH')) {
                     </p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row">
+                    <label for="prestaspot_sale_badge_color"><?php esc_html_e('Sale Badge Color', 'prestaspot'); ?></label>
+                </th>
+                <td>
+                    <input
+                        type="color"
+                        id="prestaspot_sale_badge_color"
+                        name="prestaspot_sale_badge_color"
+                        value="<?php echo esc_attr($settings['sale_badge_color']); ?>"
+                    />
+                    <p class="description">
+                        <?php esc_html_e('Background of the "Sale" ribbon/badge shown on products flagged on sale. Text color is picked automatically for contrast.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
         </table>
 
         <?php submit_button(__('Save Settings', 'prestaspot')); ?>
@@ -322,5 +374,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" on_sale="no" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" link_text="Shop now" link_style="button" button_color="#2271b1"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" on_sale="no" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" price_position="after_name" link_text="Shop now" link_style="button" button_color="#2271b1" sale_badge_color="#e63946"]</code></p>
 </div>

@@ -26,6 +26,11 @@
         { value: 'button', label: __( 'Button', 'prestaspot' ) },
     ];
 
+    const PRICE_POSITION_OPTIONS = [
+        { value: 'after_name', order: [ 'name', 'price', 'description' ], label: __( 'After Name', 'prestaspot' ) },
+        { value: 'after_description', order: [ 'name', 'description', 'price' ], label: __( 'After Description', 'prestaspot' ) },
+    ];
+
     function renderLinkStylePicker( linkStyle, buttonColor, radioGroupName, onChange ) {
         return el(
             'div',
@@ -84,11 +89,11 @@
         );
     }
 
-    function renderLayoutPicker( layout, radioGroupName, onChange ) {
+    function renderElementOrderPicker( options, selectedValue, radioGroupName, onChange ) {
         return el(
             'div',
             { className: 'prestaspot-layout-picker' },
-            LAYOUT_OPTIONS.map( function ( option ) {
+            options.map( function ( option ) {
                 return el(
                     'label',
                     { key: option.value, className: 'prestaspot-layout-option' },
@@ -96,7 +101,7 @@
                         type: 'radio',
                         name: radioGroupName,
                         value: option.value,
-                        checked: layout === option.value,
+                        checked: selectedValue === option.value,
                         onChange: function () {
                             onChange( option.value );
                         },
@@ -179,7 +184,7 @@
                     el(
                         PanelBody,
                         { title: __( 'Card Layout', 'prestaspot' ) },
-                        renderLayoutPicker( attributes.layout, 'prestaspot-layout-' + props.clientId, function ( value ) {
+                        renderElementOrderPicker( LAYOUT_OPTIONS, attributes.layout, 'prestaspot-layout-' + props.clientId, function ( value ) {
                             setAttributes( { layout: value } );
                         } ),
                         el( 'p', { className: 'components-base-control__help' }, __( 'The "View in shop" link always renders last.', 'prestaspot' ) )
@@ -214,6 +219,10 @@
                             onChange: function ( value ) {
                                 setAttributes( { showPrice: value } );
                             },
+                        } ),
+                        el( 'p', { className: 'components-base-control__help' }, __( 'Price Position', 'prestaspot' ) ),
+                        renderElementOrderPicker( PRICE_POSITION_OPTIONS, attributes.pricePosition, 'prestaspot-priceposition-' + props.clientId, function ( value ) {
+                            setAttributes( { pricePosition: value } );
                         } )
                     ),
                     el(
@@ -239,6 +248,19 @@
                                 value: attributes.buttonColor,
                                 onChange: function ( color ) {
                                     setAttributes( { buttonColor: color || '#2271b1' } );
+                                },
+                                label: __( 'Background Color', 'prestaspot' ),
+                            },
+                        ],
+                    } ),
+                    el( PanelColorSettings, {
+                        title: __( 'Sale Badge Color', 'prestaspot' ),
+                        initialOpen: false,
+                        colorSettings: [
+                            {
+                                value: attributes.saleBadgeColor,
+                                onChange: function ( color ) {
+                                    setAttributes( { saleBadgeColor: color || '#e63946' } );
                                 },
                                 label: __( 'Background Color', 'prestaspot' ),
                             },

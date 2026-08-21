@@ -27,6 +27,7 @@
 }
 
 .prestaspot-card-image {
+    position: relative;
     display: block;
     aspect-ratio: 1 / 1;
     overflow: hidden;
@@ -36,6 +37,35 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* Classic corner-ribbon technique: a fixed-width bar rotated across the
+   corner, positioned to start past the left edge so the image's own
+   overflow:hidden clips it into a clean diagonal strip. Background/text
+   color are set inline per-render (admin-configured hex), same as the shop
+   link button below - this only supplies the non-color ribbon shape. */
+.prestaspot-card-ribbon {
+    position: absolute;
+    top: 14px;
+    left: -34px;
+    width: 130px;
+    padding: 4px 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transform: rotate(-45deg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Scaled down to fit the much smaller list-mode thumbnail. */
+.prestaspot-list-item .prestaspot-card-ribbon {
+    top: 4px;
+    left: -22px;
+    width: 84px;
+    padding: 1px 0;
+    font-size: 0.5rem;
 }
 
 /* Direct flex children of .prestaspot-card, not a shared "body" wrapper, so
@@ -62,6 +92,25 @@
     margin: 0;
     padding: 0.5rem 1rem 0.25rem;
     font-weight: 600;
+}
+
+/* Independent of layout/element order - always the first thing in the
+   card/row when the product is on_sale, regardless of which elements show.
+   Background/text color set inline per-render, same as the ribbon above. */
+.prestaspot-card-badge {
+    display: inline-block;
+    align-self: flex-start;
+    margin: 0.5rem 0.5rem 0;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 3px;
+}
+
+.prestaspot-list-item > .prestaspot-card-badge {
+    margin: 0;
 }
 
 .prestaspot-card-link {

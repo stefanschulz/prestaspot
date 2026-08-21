@@ -59,6 +59,25 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories, which is enough to exercise `product_count`, `category_id`, and pagination-adjacent behavior without adding real data.
 
+### Testing the on-sale filter
+
+None of the demo shop's fixture products are flagged `on_sale` by default, so `filter[on_sale]=1` legitimately returns nothing until at least one product has that flag set. There's no admin-UI-friendly bulk way to do this for a demo shop, and PrestaShop's `on_sale` field is a merchant-set flag independent of whether a product actually has a specific-price reduction (see `.doc/ARCHITECTURE.md`) - so a realistic test fixture needs both, set directly in the DB:
+
+```bash
+docker exec prestaspot-docker-ps-db-1 mysql -uprestashop -pprestashop prestashop -e "
+UPDATE ps_product SET on_sale=1 WHERE id_product IN (1,2);
+UPDATE ps_product_shop SET on_sale=1 WHERE id_product IN (1,2);
+INSERT INTO ps_specific_price (id_specific_price_rule, id_cart, id_product, id_shop, id_shop_group, id_currency, id_country, id_group, id_customer, id_product_attribute, price, from_quantity, reduction, reduction_tax, reduction_type, \`from\`, \`to\`)
+VALUES
+(0, 0, 1, 1, 0, 0, 0, 0, 0, 0, -1, 1, 0.20, 1, 'percentage', '0000-00-00 00:00:00', '0000-00-00 00:00:00'),
+(0, 0, 2, 1, 0, 0, 0, 0, 0, 0, -1, 1, 0.15, 1, 'percentage', '0000-00-00 00:00:00', '0000-00-00 00:00:00');
+"
+```
+
+**Both `ps_product.on_sale` and `ps_product_shop.on_sale` need updating** - PrestaShop's `Product` class defines `on_sale` as a shop-scoped field (`'shop' => true` in `Product::$definition`), so the webservice's `on_sale` display field (and, seemingly, `filter[on_sale]` too - not fully confirmed, see `.doc/ARCHITECTURE.md`) actually reads/writes `ps_product_shop`. Updating only the legacy `ps_product` column was tried first and left `filter[on_sale]=1` matching correctly while the returned `on_sale` field for those same products still read back `0` - a confusing half-working state that's easy to reintroduce if this fixture is ever redone by hand instead of copy-pasted.
+
+This is a persisted fixture (unlike the throwaway WPML test double below) - the "Sale Test" page in the dev environment uses `[prestaspot product_count="6" on_sale="yes"]` and expects exactly these two products (Hummingbird t-shirt/sweater) to show up, each with a "Sale" badge. If it ever needs resetting, set both `on_sale` columns back to `0` for products 1/2 plus deleting the matching `ps_specific_price` rows reverts it.
+
 ### Testing the multilingual language sync
 
 The demo shop starts with a single language (English, `id_lang=1`), and there's no admin-UI-friendly way to add a second language (PrestaShop's "Add new language" form requires uploading flag/placeholder image files) - going straight through the DB is faster for a throwaway dev shop:

@@ -54,7 +54,7 @@ class Presta_Spot_Api
             // -aware computed price (the "price[alias][use_tax]=..." bracket
             // syntax) only works when fetching a single product by id, not on
             // this list endpoint, so it can't be used for a product listing.
-            'display' => '[id,name,description_short,link_rewrite,id_default_image,price]',
+            'display' => '[id,name,description_short,link_rewrite,id_default_image,price,on_sale]',
             'output_format' => 'JSON',
             'filter[active]' => '1',
             'limit' => '0,' . $limit,
@@ -100,6 +100,7 @@ class Presta_Spot_Api
             'image_url' => $this->build_image_url($shop_url, $api_key, $id, $product['id_default_image'] ?? ''),
             'permalink' => trailingslashit($shop_url) . 'index.php?controller=product&id_product=' . $id,
             'price' => isset($product['price']) ? $this->format_price((float)$product['price'], $currency) : '',
+            'on_sale' => !empty($product['on_sale']),
         );
     }
 

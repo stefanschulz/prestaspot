@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.9.0
+**Version**: 0.10.0
 
 ---
 
@@ -91,11 +91,13 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `SHOW_NAME` | `show_name` | `true` | bool |
 | `SHOW_DESCRIPTION` | `show_description` | `true` | bool |
 | `SHOW_PRICE` | `show_price` | `true` | bool |
+| `PRICE_POSITION` | `price_position` | `after_name` | string enum: `after_name` or `after_description`, see below |
 | `LAYOUT` | `layout` | `image_name_description` | string enum, see below |
 | `VIEW_MODE` | `view_mode` | `grid` | string enum: `grid` or `list`, see below |
 | `LINK_TEXT` | `link_text` | `''` | string, `sanitize_text_field()`. Empty means "use the built-in translated label" - see the shop link section below |
 | `LINK_STYLE` | `link_style` | `link` | string enum: `link` or `button` |
 | `BUTTON_COLOR` | `button_color` | `#2271b1` | hex color, `sanitize_hex_color()`; only used when `LINK_STYLE` is `button` |
+| `SALE_BADGE_COLOR` | `sale_badge_color` | `#e63946` | hex color, `sanitize_hex_color()`; background of the sale ribbon/badge, see below |
 
 `get_all(): array` fetches and sanitizes every option in one call; `get(string $key)` returns a single value via `get_all()`. There is no per-key `get_option()` fast path - simplicity over micro-optimization, since this runs at most once per render.
 
@@ -111,7 +113,14 @@ const LAYOUT_ELEMENT_ORDER = array(
 
 This is the single source of truth for both (a) validating a stored/submitted layout value and (b) the actual render order (`Presta_Spot_Settings::get_layout_element_order($layout)`, used by the renderer) and (c) the preview block order in the visual layout picker (both the admin template and `blocks/product-list/index.js` build their picker cards from this same list, so a new layout only needs to be added once, here). The "View in shop" link is not part of this order - it always renders last, unconditionally (see `templates/product-cards.php`).
 
-**Price is not part of this constant.** Since it always renders directly after `name` regardless of which layout is picked, `Presta_Spot_Renderer::render()` splices `'price'` into the resolved `$element_order` array at render time (`array_splice($element_order, array_search('name', ...) + 1, 0, ['price'])`) rather than being a fourth position in every `LAYOUT_ELEMENT_ORDER` permutation - that would have multiplied the number of layout choices for no real benefit. Its visibility is still controlled by `$show_price` through the same `$prestaspot_visible_elements` filter as the other elements (see below), so hiding it works exactly the same way; it just isn't reorderable.
+**Price is not part of this constant.** Rather than being a fourth position in every `LAYOUT_ELEMENT_ORDER` permutation - which would multiply the number of layout choices (3 layouts × price position) for comparatively little benefit - `Presta_Spot_Renderer::render()` splices `'price'` into the resolved `$element_order` array at render time, right after whichever element `PRICE_POSITION` points at:
+
+```php
+$price_anchor = Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION === $price_position ? 'description' : 'name';
+array_splice($element_order, array_search($price_anchor, $element_order, true) + 1, 0, ['price']);
+```
+
+Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER` permutation regardless of layout, this works unconditionally without needing a "anchor not found" fallback. `PRICE_POSITION` has its own two-value picker (`PRICE_POSITION_AFTER_NAME`/`PRICE_POSITION_AFTER_DESCRIPTION`, validated via `PRICE_POSITIONS`), independent of `layout` - so e.g. `layout=name_image_description` with `price_position=after_description` still puts price last (name, image, description, price), not between name and image. Price's *visibility* is controlled by `$show_price` through the same `$prestaspot_visible_elements` filter as the other elements (see below), same as before - only its position is now configurable.
 
 ---
 
@@ -119,15 +128,19 @@ This is the single source of truth for both (a) validating a stored/submitted la
 
 `get_products(int $limit, int $category_id = 0, bool $on_sale = false): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
 
-**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image,price]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&filter[on_sale]=1` when the `on_sale` argument is true, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
+**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image,price,on_sale]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&filter[on_sale]=1` when the `on_sale` argument is true, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
 
 **Normalization** (`normalize_product()`) maps the raw PrestaShop product into the flat shape every template expects:
 
 ```php
-['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string, 'price' => string]
+['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string, 'price' => string, 'on_sale' => bool]
 ```
 
 `price` is pre-formatted (amount + currency symbol, e.g. `"23.90 €"`) via `format_price()`, not a raw float - the template only ever needs to echo it. It's built from the `price` field's raw value (always tax-excluded in PrestaShop) and `get_shop_currency()`'s symbol/precision (see below); empty string if the `price` field was missing from the response for some reason (template hides the price element entirely in that case, same as a missing `description`).
+
+`on_sale` is `products.on_sale` cast to bool (`!empty($product['on_sale'])` - the webservice returns it as the string `"0"`/`"1"`) - this is what the `templates/product-cards.php` badge below is driven by, independent of whether the `filter[on_sale]` argument was used for this particular request.
+
+****`on_sale` is shop-scoped, not the base `ps_product` row** - worth knowing if you're editing this field directly in the DB rather than through PrestaShop's admin UI (see the dev-fixture note in `.doc/DEVELOPER_GUIDE.md`, discovered exactly this way): `Product::$definition['fields']['on_sale']` has `'shop' => true`, meaning `Product::on_sale` and this webservice display field both actually read `ps_product_shop.on_sale`. `ps_product.on_sale` still exists as a column but isn't what's read here - a raw `UPDATE ps_product SET on_sale=1` was observed to make `filter[on_sale]=1` match the product while the returned `on_sale` display field for that same product still read back `"0"`, until `ps_product_shop.on_sale` was updated too. Exactly why the filter and the display field disagreed isn't confirmed (not worth digging into PrestaShop's filter SQL for a dev-fixture quirk) - but updating both is the fix and avoids the question.
 
 - **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string when the request was scoped to a single language via `language=`, or as an array of `{id, value}` pairs (one per configured shop language) when it wasn't. `localized_value()` normalizes both shapes to a string, taking the first language's value in the array case - this array case is now mainly a fallback (no Polylang, or no matching shop language), not the primary path.
 - **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
@@ -189,11 +202,11 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `on_sale`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `on_sale`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
-- **Numeric/string options** (`product_count`, `columns`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style` additionally validate against their `VIEW_MODES`/`LINK_STYLES` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color` re-validates via `sanitize_hex_color()` since it can arrive from an untrusted shortcode attribute.
+- **Numeric/string options** (`product_count`, `columns`, `layout`, `price_position`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style`/`price_position` additionally validate against their `VIEW_MODES`/`LINK_STYLES`/`PRICE_POSITIONS` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color`/`sale_badge_color` re-validate via `sanitize_hex_color()` since they can arrive from an untrusted shortcode attribute.
 - **Boolean options** (`show_image`, `show_name`, `show_description`, `show_price`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
 
 `category_id` and `on_sale` are the odd ones out: both are instance-only filters with **no** global setting to fall back to (there's nothing sensible a site-wide "default category" or "default on-sale-only" would mean) - `category_id` already established this precedent (`absint($args['category_id'] ?? 0)`, `0` = no filter), and `on_sale` follows it exactly (`!empty($args['on_sale'])`, unset/false = no filter).
@@ -222,6 +235,17 @@ If `show_image` is off (or a specific product just has no image), that whole `im
 
 **Why the image isn't in a separate wrapper at the element-styling level**: `assets/css/prestaspot.css` styles `.prestaspot-card-image`/`-title`/`-description`/`-link` as reusable element classes, not nested in a card-specific "body" div - both view modes, and any position the image ends up in via `layout`, share the same four classes. The grid uses `margin-top: auto` on the link to stay pinned to the card bottom (column flex); the list overrides this to `margin-left: auto` (row flex) so the link instead pins to the row's *right* end - see the "List view" block in `prestaspot.css` for the full set of overrides `.prestaspot-list-item` needs (smaller image, `.prestaspot-list-item-text` as its own flex column, reset paddings that assumed a vertical card).
 
+### Sale Indicator (corner ribbon + `$prestaspot_render_badge` fallback)
+
+Driven purely by whether *that product* is flagged `on_sale` in PrestaShop - not by whether the `on_sale` filter argument was used for the request, so it also lights up on an unfiltered "all products" listing when one of the shown products happens to be on sale. Not part of the reorderable/toggleable element system on purpose - it's a status indicator, not a content element like name/description/price, so it doesn't need a position or a visibility setting the way those do.
+
+Two renderings, depending on whether an image is actually shown for that product:
+
+- **With image**: a `<span class="prestaspot-card-ribbon">Sale</span>` is embedded directly inside the `<a class="prestaspot-card-image">` markup returned by `$prestaspot_render_element('image', ...)` (not a separate closure call) - it needs to live *inside* that link so `.prestaspot-card-image`'s `overflow: hidden` clips it into a clean diagonal strip, and `position: relative` on that same element anchors it. CSS does the rest: `position: absolute`, fixed width, `transform: rotate(-45deg)`, positioned to start past the image's left edge so the rotated strip's ends land outside the visible box and get clipped instead of dangling. `.prestaspot-list-item .prestaspot-card-ribbon` overrides the size down for list mode's much smaller thumbnail (`.prestaspot-list-item .prestaspot-card-image` is `4.5rem` wide vs. the grid's fluid, typically-much-larger square) - same technique, smaller numbers, not a different implementation.
+- **Without image** (`show_image` off, or the product has none): the ribbon has nothing to wrap around, so `$prestaspot_render_badge(array $product): string` renders a plain `<span class="prestaspot-card-badge">Sale</span>` as the first child of the card/row wrapper instead - the flat badge from before the ribbon existed, now scoped to exactly this fallback case (`empty($product['on_sale']) || ($show_image && !empty($product['image_url']))` short-circuits to `''` otherwise, so the two never both render for the same product).
+
+**Color** (`$sale_badge_color`, resolved in the Renderer like `button_color`) is applied inline, not in the stylesheet - `prestaspot.css` only supplies the ribbon/badge *shape* (position, rotation, padding, font) with no `background`/`color` declared, same division of responsibility as the shop link button. Both the ribbon and badge spans get the identical `style="background-color: ...; color: ...;"` attribute, built once per render as `$prestaspot_sale_badge_style` and passed into both closures - `color` comes from `Presta_Spot_Renderer::get_contrasting_text_color($sale_badge_color)`, the same static method the shop link button uses, so a badly-contrasting badge color can't happen any more than a badly-contrasting button can.
+
 ### Shop Link (`$prestaspot_render_link`)
 
 Built once per render (not inside the element closure above), since its label/style/color don't vary by product:
@@ -238,7 +262,7 @@ When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--but
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `view_mode`, `link_text`, `link_style`, `button_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `price_position`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown". `on_sale` defaults to `'no'` (not the empty-string sentinel) and is always parsed via the same `parse_bool()` - unlike the `show_*` flags it has no settings-level default to fall through to, so there's no "unset" state to distinguish.
 
@@ -252,7 +276,9 @@ Registered via `register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `pricePosition`→`price_position`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`, `saleBadgeColor`→`sale_badge_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting.
+
+**Element-order pickers are shared code**: `renderElementOrderPicker(options, selectedValue, radioGroupName, onChange)` in `index.js` is the generic version of what was, before 0.10.0, a `renderLayoutPicker()` hardcoded to the `layout` attribute - it now backs both the Card Layout picker (`LAYOUT_OPTIONS`) and the Price Position picker (`PRICE_POSITION_OPTIONS`), since both are "pick one arrangement, preview it as a row of `.prestaspot-layout-block--*` bars" pickers with nothing else attribute-specific in the markup. A new picker of this same shape (options array with `value`/`order`/`label`) only needs a new `*_OPTIONS` array, not a new render function.
 
 **Visual pickers**: both `templates/settings-page.php` and `blocks/product-list/index.js` render three radio-based pickers sharing the same `.prestaspot-layout-picker`/`.prestaspot-layout-option` shell (a styled `<label>` wrapping a real radio input, so keyboard/label-click semantics come for free) but different preview content:
 
@@ -263,6 +289,8 @@ Editor preview uses `<ServerSideRender block="prestaspot/product-list" attribute
 Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual state. All three pickers share `assets/css/layout-picker.css` (the name predates the later pickers but wasn't worth renaming/splitting for a few more small rulesets) - enqueued directly by `Presta_Spot_Admin::enqueue_admin_scripts()` for the settings page, and via `block.json`'s `editorStyle` field for the block editor. In the block editor, each picker's radio `name` is scoped with the block's `clientId` (e.g. `'prestaspot-layout-' + props.clientId`) so multiple block instances on one page can't cross-uncheck each other via native radio-group semantics - defensive, since Gutenberg only mounts one block's `InspectorControls` in the sidebar at a time in practice.
 
 **Button color control**: unlike the other pickers, the actual color value is set via `wp.blockEditor.PanelColorSettings` (the same component core blocks like Paragraph/Button use for their color settings), not a custom control - unlike a 2-3 option enum, "pick any color" isn't a good fit for the visual-card-picker pattern. It's rendered as its own panel, conditionally (`'button' === attributes.linkStyle && el(PanelColorSettings, {...})`) - only shown once Link Style is set to Button. The settings page (plain PHP form, no reactive show/hide) instead always shows the native `<input type="color">` field with a "only used when Shop Link Style is Button" description, matching how `columns`/`view_mode` handle the same kind of conditional relevance.
+
+**Sale badge color control** follows the identical `PanelColorSettings` pattern, but *unconditionally* - there's no other attribute that gates whether the sale indicator can appear (it's driven by each product's own `on_sale` flag, not a setting), so its panel is always rendered rather than behind a `condition && el(...)` check like the button color panel.
 
 ---
 

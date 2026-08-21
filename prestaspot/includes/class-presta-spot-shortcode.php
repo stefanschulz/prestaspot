@@ -38,9 +38,11 @@ class Presta_Spot_Shortcode
             'show_name' => '',
             'show_description' => '',
             'show_price' => '',
+            'price_position' => '',
             'link_text' => '',
             'link_style' => '',
             'button_color' => '',
+            'sale_badge_color' => '',
         ), $attributes, 'prestaspot');
 
         $render_args = array(
@@ -49,10 +51,12 @@ class Presta_Spot_Shortcode
             'on_sale' => $this->parse_bool($attributes['on_sale']),
             'columns' => (int)$attributes['columns'],
             'layout' => $attributes['layout'],
+            'price_position' => $attributes['price_position'],
             'view_mode' => $attributes['view_mode'],
             'link_text' => $attributes['link_text'],
             'link_style' => $attributes['link_style'],
             'button_color' => $attributes['button_color'],
+            'sale_badge_color' => $attributes['sale_badge_color'],
         );
 
         foreach (array('show_image', 'show_name', 'show_description', 'show_price') as $flag) {

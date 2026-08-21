@@ -47,11 +47,13 @@ class Presta_Spot_Block
             'show_name' => (bool)($attributes['showName'] ?? true),
             'show_description' => (bool)($attributes['showDescription'] ?? true),
             'show_price' => (bool)($attributes['showPrice'] ?? true),
+            'price_position' => (string)($attributes['pricePosition'] ?? ''),
             'layout' => (string)($attributes['layout'] ?? ''),
             'view_mode' => (string)($attributes['viewMode'] ?? ''),
             'link_text' => (string)($attributes['linkText'] ?? ''),
             'link_style' => (string)($attributes['linkStyle'] ?? ''),
             'button_color' => (string)($attributes['buttonColor'] ?? ''),
+            'sale_badge_color' => (string)($attributes['saleBadgeColor'] ?? ''),
         ));
     }
 }

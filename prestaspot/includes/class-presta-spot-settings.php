@@ -22,6 +22,15 @@ class Presta_Spot_Settings
     public const SHOW_NAME = 'show_name';
     public const SHOW_DESCRIPTION = 'show_description';
     public const SHOW_PRICE = 'show_price';
+    public const PRICE_POSITION = 'price_position';
+
+    // Price isn't part of LAYOUT_ELEMENT_ORDER (that would multiply the
+    // number of layout choices) - just where it sits relative to name/description.
+    public const PRICE_POSITION_AFTER_NAME = 'after_name';
+    public const PRICE_POSITION_AFTER_DESCRIPTION = 'after_description';
+
+    const PRICE_POSITIONS = array(self::PRICE_POSITION_AFTER_NAME, self::PRICE_POSITION_AFTER_DESCRIPTION);
+
     public const LAYOUT = 'layout';
 
     // Card layouts: which order image/name/description render in. The
@@ -47,6 +56,7 @@ class Presta_Spot_Settings
     public const LINK_TEXT = 'link_text';
     public const LINK_STYLE = 'link_style';
     public const BUTTON_COLOR = 'button_color';
+    public const SALE_BADGE_COLOR = 'sale_badge_color';
 
     // Shop link display: a plain text link (current default) or a filled button.
     public const LINK_STYLE_LINK = 'link';
@@ -64,6 +74,7 @@ class Presta_Spot_Settings
         self::SHOW_NAME => true,
         self::SHOW_DESCRIPTION => true,
         self::SHOW_PRICE => true,
+        self::PRICE_POSITION => self::PRICE_POSITION_AFTER_NAME,
         self::LAYOUT => self::LAYOUT_IMAGE_NAME_DESCRIPTION,
         self::VIEW_MODE => self::VIEW_MODE_GRID,
         // Empty string means "use the built-in translated label" - a class
@@ -71,6 +82,7 @@ class Presta_Spot_Settings
         self::LINK_TEXT => '',
         self::LINK_STYLE => self::LINK_STYLE_LINK,
         self::BUTTON_COLOR => '#2271b1',
+        self::SALE_BADGE_COLOR => '#e63946',
     );
 
     public function __construct() {}
@@ -87,11 +99,13 @@ class Presta_Spot_Settings
             self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
             self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
             self::SHOW_PRICE => $this->get_prestaspot_option(self::SHOW_PRICE),
+            self::PRICE_POSITION => $this->get_prestaspot_option(self::PRICE_POSITION),
             self::LAYOUT => $this->get_prestaspot_option(self::LAYOUT),
             self::VIEW_MODE => $this->get_prestaspot_option(self::VIEW_MODE),
             self::LINK_TEXT => $this->get_prestaspot_option(self::LINK_TEXT),
             self::LINK_STYLE => $this->get_prestaspot_option(self::LINK_STYLE),
             self::BUTTON_COLOR => $this->get_prestaspot_option(self::BUTTON_COLOR),
+            self::SALE_BADGE_COLOR => $this->get_prestaspot_option(self::SALE_BADGE_COLOR),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -103,6 +117,9 @@ class Presta_Spot_Settings
         $settings[self::SHOW_NAME] = (bool)$settings[self::SHOW_NAME];
         $settings[self::SHOW_DESCRIPTION] = (bool)$settings[self::SHOW_DESCRIPTION];
         $settings[self::SHOW_PRICE] = (bool)$settings[self::SHOW_PRICE];
+        $settings[self::PRICE_POSITION] = in_array($settings[self::PRICE_POSITION], self::PRICE_POSITIONS, true)
+            ? $settings[self::PRICE_POSITION]
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::PRICE_POSITION];
         $settings[self::LAYOUT] = array_key_exists($settings[self::LAYOUT], self::LAYOUT_ELEMENT_ORDER)
             ? $settings[self::LAYOUT]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LAYOUT];
@@ -114,6 +131,7 @@ class Presta_Spot_Settings
             ? $settings[self::LINK_STYLE]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LINK_STYLE];
         $settings[self::BUTTON_COLOR] = sanitize_hex_color($settings[self::BUTTON_COLOR]) ?: self::PRESTASPOT_SETTINGS_DEFAULTS[self::BUTTON_COLOR];
+        $settings[self::SALE_BADGE_COLOR] = sanitize_hex_color($settings[self::SALE_BADGE_COLOR]) ?: self::PRESTASPOT_SETTINGS_DEFAULTS[self::SALE_BADGE_COLOR];
 
         return $settings;
     }

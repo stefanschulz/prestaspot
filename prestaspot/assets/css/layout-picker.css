@@ -65,6 +65,12 @@
     background: #dcdcde;
 }
 
+.prestaspot-layout-block--price {
+    height: 8px;
+    width: 40%;
+    background: #2271b1;
+}
+
 .prestaspot-layout-label {
     font-size: 0.8rem;
     color: #50575e;

@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, on_sale?: bool, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, price_position?: ?string, on_sale?: bool, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -38,11 +38,16 @@ class Presta_Spot_Renderer
         $show_name = array_key_exists('show_name', $args) ? (bool)$args['show_name'] : $settings[Presta_Spot_Settings::SHOW_NAME];
         $show_description = array_key_exists('show_description', $args) ? (bool)$args['show_description'] : $settings[Presta_Spot_Settings::SHOW_DESCRIPTION];
         $show_price = array_key_exists('show_price', $args) ? (bool)$args['show_price'] : $settings[Presta_Spot_Settings::SHOW_PRICE];
+        $price_position = !empty($args['price_position']) && in_array($args['price_position'], Presta_Spot_Settings::PRICE_POSITIONS, true)
+            ? $args['price_position']
+            : $settings[Presta_Spot_Settings::PRICE_POSITION];
         $layout = !empty($args['layout']) ? $args['layout'] : $settings[Presta_Spot_Settings::LAYOUT];
         $element_order = Presta_Spot_Settings::get_layout_element_order($layout);
         // Price isn't part of the layout picker (it would multiply the number
-        // of layout choices); it always renders directly after the name.
-        array_splice($element_order, array_search('name', $element_order, true) + 1, 0, array('price'));
+        // of layout choices); it's spliced in right after whichever of
+        // name/description $price_position points at instead.
+        $price_anchor = Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION === $price_position ? 'description' : 'name';
+        array_splice($element_order, array_search($price_anchor, $element_order, true) + 1, 0, array('price'));
         $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)
             ? $args['view_mode']
             : $settings[Presta_Spot_Settings::VIEW_MODE];
@@ -55,6 +60,9 @@ class Presta_Spot_Renderer
         $button_color = !empty($args['button_color'])
             ? (sanitize_hex_color($args['button_color']) ?: $settings[Presta_Spot_Settings::BUTTON_COLOR])
             : $settings[Presta_Spot_Settings::BUTTON_COLOR];
+        $sale_badge_color = !empty($args['sale_badge_color'])
+            ? (sanitize_hex_color($args['sale_badge_color']) ?: $settings[Presta_Spot_Settings::SALE_BADGE_COLOR])
+            : $settings[Presta_Spot_Settings::SALE_BADGE_COLOR];
 
         $products = $this->api->get_products($product_count, $category_id, $on_sale);
 
