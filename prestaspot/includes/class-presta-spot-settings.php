@@ -64,6 +64,29 @@ class Presta_Spot_Settings
 
     const LINK_STYLES = array(self::LINK_STYLE_LINK, self::LINK_STYLE_BUTTON);
 
+    public const SORT = 'sort';
+
+    // '' means no explicit sort - PrestaShop's own (undefined) product order,
+    // same as before this setting existed. A real, meaningful choice here,
+    // not just a sentinel - same idea as LINK_TEXT's empty default below.
+    public const SORT_DEFAULT = '';
+    public const SORT_NAME_ASC = 'name_asc';
+    public const SORT_NAME_DESC = 'name_desc';
+    public const SORT_PRICE_ASC = 'price_asc';
+    public const SORT_PRICE_DESC = 'price_desc';
+    public const SORT_DATE_ASC = 'date_asc';
+    public const SORT_DATE_DESC = 'date_desc';
+
+    const SORTS = array(
+        self::SORT_DEFAULT,
+        self::SORT_NAME_ASC,
+        self::SORT_NAME_DESC,
+        self::SORT_PRICE_ASC,
+        self::SORT_PRICE_DESC,
+        self::SORT_DATE_ASC,
+        self::SORT_DATE_DESC,
+    );
+
     const PRESTASPOT_SETTINGS_DEFAULTS = array(
         self::SHOP_URL => '',
         self::API_KEY => '',
@@ -83,6 +106,7 @@ class Presta_Spot_Settings
         self::LINK_STYLE => self::LINK_STYLE_LINK,
         self::BUTTON_COLOR => '#2271b1',
         self::SALE_BADGE_COLOR => '#e63946',
+        self::SORT => self::SORT_DEFAULT,
     );
 
     public function __construct() {}
@@ -106,6 +130,7 @@ class Presta_Spot_Settings
             self::LINK_STYLE => $this->get_prestaspot_option(self::LINK_STYLE),
             self::BUTTON_COLOR => $this->get_prestaspot_option(self::BUTTON_COLOR),
             self::SALE_BADGE_COLOR => $this->get_prestaspot_option(self::SALE_BADGE_COLOR),
+            self::SORT => $this->get_prestaspot_option(self::SORT),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -132,6 +157,9 @@ class Presta_Spot_Settings
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LINK_STYLE];
         $settings[self::BUTTON_COLOR] = sanitize_hex_color($settings[self::BUTTON_COLOR]) ?: self::PRESTASPOT_SETTINGS_DEFAULTS[self::BUTTON_COLOR];
         $settings[self::SALE_BADGE_COLOR] = sanitize_hex_color($settings[self::SALE_BADGE_COLOR]) ?: self::PRESTASPOT_SETTINGS_DEFAULTS[self::SALE_BADGE_COLOR];
+        $settings[self::SORT] = in_array($settings[self::SORT], self::SORTS, true)
+            ? $settings[self::SORT]
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::SORT];
 
         return $settings;
     }

@@ -8,5 +8,5 @@ return array(
         'wp-server-side-render',
         'wp-i18n',
     ),
-    'version' => '0.11.0',
+    'version' => '0.12.0',
 );

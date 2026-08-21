@@ -7,6 +7,7 @@
     const useBlockProps = blockEditor.useBlockProps;
     const PanelBody = components.PanelBody;
     const RangeControl = components.RangeControl;
+    const SelectControl = components.SelectControl;
     const TextControl = components.TextControl;
     const ToggleControl = components.ToggleControl;
 
@@ -29,6 +30,16 @@
     const PRICE_POSITION_OPTIONS = [
         { value: 'after_name', order: [ 'name', 'price', 'description' ], label: __( 'After Name', 'prestaspot' ) },
         { value: 'after_description', order: [ 'name', 'description', 'price' ], label: __( 'After Description', 'prestaspot' ) },
+    ];
+
+    const SORT_OPTIONS = [
+        { value: '', label: __( 'Default', 'prestaspot' ) },
+        { value: 'name_asc', label: __( 'Name (A–Z)', 'prestaspot' ) },
+        { value: 'name_desc', label: __( 'Name (Z–A)', 'prestaspot' ) },
+        { value: 'price_asc', label: __( 'Price (Low to High)', 'prestaspot' ) },
+        { value: 'price_desc', label: __( 'Price (High to Low)', 'prestaspot' ) },
+        { value: 'date_desc', label: __( 'Newest First', 'prestaspot' ) },
+        { value: 'date_asc', label: __( 'Oldest First', 'prestaspot' ) },
     ];
 
     function renderLinkStylePicker( linkStyle, buttonColor, radioGroupName, onChange ) {
@@ -178,6 +189,14 @@
                             checked: attributes.onSale,
                             onChange: function ( value ) {
                                 setAttributes( { onSale: value } );
+                            },
+                        } ),
+                        el( SelectControl, {
+                            label: __( 'Sort By', 'prestaspot' ),
+                            value: attributes.sort,
+                            options: SORT_OPTIONS,
+                            onChange: function ( value ) {
+                                setAttributes( { sort: value } );
                             },
                         } )
                     ),

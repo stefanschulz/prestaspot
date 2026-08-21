@@ -48,6 +48,7 @@ class Presta_Spot_Block
             'show_description' => (bool)($attributes['showDescription'] ?? true),
             'show_price' => (bool)($attributes['showPrice'] ?? true),
             'price_position' => (string)($attributes['pricePosition'] ?? ''),
+            'sort' => (string)($attributes['sort'] ?? ''),
             'layout' => (string)($attributes['layout'] ?? ''),
             'view_mode' => (string)($attributes['viewMode'] ?? ''),
             'link_text' => (string)($attributes['linkText'] ?? ''),

@@ -138,6 +138,35 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
             </tr>
             <tr>
                 <th scope="row">
+                    <label for="prestaspot_sort"><?php esc_html_e('Sort By', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_sort', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SORT]); ?>
+                </th>
+                <td>
+                    <?php
+                    $prestaspot_sort_options = array(
+                        Presta_Spot_Settings::SORT_DEFAULT => __('Default', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_NAME_ASC => __('Name (A-Z)', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_NAME_DESC => __('Name (Z-A)', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_PRICE_ASC => __('Price (Low to High)', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_PRICE_DESC => __('Price (High to Low)', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_DATE_DESC => __('Newest First', 'prestaspot'),
+                        Presta_Spot_Settings::SORT_DATE_ASC => __('Oldest First', 'prestaspot'),
+                    );
+                    ?>
+                    <select id="prestaspot_sort" name="prestaspot_sort">
+                        <?php foreach ($prestaspot_sort_options as $prestaspot_sort_value => $prestaspot_sort_label) : ?>
+                            <option value="<?php echo esc_attr($prestaspot_sort_value); ?>" <?php selected($settings['sort'], $prestaspot_sort_value); ?>>
+                                <?php echo esc_html($prestaspot_sort_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="description">
+                        <?php esc_html_e('"Default" leaves the order up to PrestaShop (unspecified).', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
                     <?php esc_html_e('Display Mode', 'prestaspot'); ?>
                     <?php echo $prestaspot_reset_button('prestaspot_view_mode', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE]); ?>
                 </th>
@@ -410,5 +439,5 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" on_sale="no" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" price_position="after_name" link_text="Shop now" link_style="button" button_color="#2271b1" sale_badge_color="#e63946"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" on_sale="no" sort="" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" price_position="after_name" link_text="Shop now" link_style="button" button_color="#2271b1" sale_badge_color="#e63946"]</code></p>
 </div>

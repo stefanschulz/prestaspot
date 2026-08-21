@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.11.0
+**Version**: 0.12.0
 
 ---
 
@@ -102,6 +102,7 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `LINK_STYLE` | `link_style` | `link` | string enum: `link` or `button` |
 | `BUTTON_COLOR` | `button_color` | `#2271b1` | hex color, `sanitize_hex_color()`; only used when `LINK_STYLE` is `button` |
 | `SALE_BADGE_COLOR` | `sale_badge_color` | `#e63946` | hex color, `sanitize_hex_color()`; background of the sale ribbon/badge, see below |
+| `SORT` | `sort` | `''` | string enum: `''` (PrestaShop's own, unspecified order) or `name_asc`/`name_desc`/`price_asc`/`price_desc`/`date_asc`/`date_desc`, see below |
 
 `get_all(): array` fetches and sanitizes every option in one call; `get(string $key)` returns a single value via `get_all()`. There is no per-key `get_option()` fast path - simplicity over micro-optimization, since this runs at most once per render.
 
@@ -130,9 +131,9 @@ Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER
 
 ## PrestaShop Webservice Client (`Presta_Spot_Api`)
 
-`get_products(int $limit, int $category_id = 0, bool $on_sale = false): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
+`get_products(int $limit, int $category_id = 0, bool $on_sale = false, string $sort = ''): array` — returns `[]` immediately if `shop_url` or `api_key` is empty (no request attempted).
 
-**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image,price,on_sale]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&filter[on_sale]=1` when the `on_sale` argument is true, `&language={id}` when a Polylang language match was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
+**Request**: `GET {shop_url}/api/products?display=[id,name,description_short,link_rewrite,id_default_image,price,on_sale]&output_format=JSON&filter[active]=1&limit=0,{limit}` (`&filter[id_category_default]={id}` added when a category filter is given, `&filter[on_sale]=1` when the `on_sale` argument is true, `&sort=field_DIRECTION` (`+&date=1` for date fields) when `$sort` is non-empty - see below, `&language={id}` when a language was resolved - see below), authenticated via `Authorization: Basic base64(api_key:)` — the PrestaShop webservice convention of using the API key as the Basic Auth username with an empty password.
 
 **Normalization** (`normalize_product()`) maps the raw PrestaShop product into the flat shape every template expects:
 
@@ -144,13 +145,19 @@ Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER
 
 `on_sale` is `products.on_sale` cast to bool (`!empty($product['on_sale'])` - the webservice returns it as the string `"0"`/`"1"`) - this is what the `templates/product-cards.php` badge below is driven by, independent of whether the `filter[on_sale]` argument was used for this particular request.
 
-****`on_sale` is shop-scoped, not the base `ps_product` row** - worth knowing if you're editing this field directly in the DB rather than through PrestaShop's admin UI (see the dev-fixture note in `.doc/DEVELOPER_GUIDE.md`, discovered exactly this way): `Product::$definition['fields']['on_sale']` has `'shop' => true`, meaning `Product::on_sale` and this webservice display field both actually read `ps_product_shop.on_sale`. `ps_product.on_sale` still exists as a column but isn't what's read here - a raw `UPDATE ps_product SET on_sale=1` was observed to make `filter[on_sale]=1` match the product while the returned `on_sale` display field for that same product still read back `"0"`, until `ps_product_shop.on_sale` was updated too. Exactly why the filter and the display field disagreed isn't confirmed (not worth digging into PrestaShop's filter SQL for a dev-fixture quirk) - but updating both is the fix and avoids the question.
+**`on_sale` is shop-scoped, not the base `ps_product` row** - worth knowing if you're editing this field directly in the DB rather than through PrestaShop's admin UI (see the dev-fixture note in `.doc/DEVELOPER_GUIDE.md`, discovered exactly this way): `Product::$definition['fields']['on_sale']` has `'shop' => true`, meaning `Product::on_sale` and this webservice display field both actually read `ps_product_shop.on_sale`. `ps_product.on_sale` still exists as a column but isn't what's read here - a raw `UPDATE ps_product SET on_sale=1` was observed to make `filter[on_sale]=1` match the product while the returned `on_sale` display field for that same product still read back `"0"`, until `ps_product_shop.on_sale` was updated too. Exactly why the filter and the display field disagreed isn't confirmed (not worth digging into PrestaShop's filter SQL for a dev-fixture quirk) - but updating both is the fix and avoids the question.
 
 - **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string when the request was scoped to a single language via `language=`, or as an array of `{id, value}` pairs (one per configured shop language) when it wasn't. `localized_value()` normalizes both shapes to a string, taking the first language's value in the array case - this array case is now mainly a fallback (no Polylang, or no matching shop language), not the primary path.
 - **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
 - **Permalink**: always `{shop_url}/index.php?controller=product&id_product={id}` (the ID-based fallback URL) rather than a friendly/rewritten URL — this works regardless of the shop's URL-rewrite configuration, at the cost of not being a "pretty" URL.
 
-**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id and `on_sale` are part of the key specifically so different languages or sale-filtered vs. unfiltered requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale|sort)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id, `on_sale`, and `sort` are all part of the key specifically so different languages, sale-filtered vs. unfiltered, or differently-sorted requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+
+### Sort (`build_sort_args()`)
+
+`Presta_Spot_Api::build_sort_args(string $sort): array` maps the setting's short values to the webservice's actual query params via a lookup table (`Presta_Spot_Settings::SORT_NAME_ASC => ['name', 'ASC']`, etc.): `''` (nothing matched, or `SORT_DEFAULT`) returns `[]` - no `sort=` param at all, PrestaShop's own unspecified order, same as before this setting existed. Otherwise it builds `sort={field}_{ASC|DESC}`, and for the two `date_add` variants, also adds `date=1` - confirmed via live testing that the webservice otherwise rejects `date_add` outright ("Unable to filter by this field") since date fields aren't sortable/filterable by default without that flag.
+
+Sorting by `price` needed no special handling (it's a plain numeric column, same field `format_price()` already reads). Sorting by `name`, though, sorts on a *multilingual* field - see the language-fallback fix directly below, which this depends on to avoid a 500 on shops with incomplete translation coverage.
 
 ### Price and currency (`format_price()`, `get_shop_currency()`)
 
@@ -196,6 +203,24 @@ Polylang is tried first, WPML second; both running at once isn't a realistic sce
 - **Shop languages**: `GET {shop_url}/api/languages?display=[id,iso_code]` - **not** `filter[id_lang]` (that key doesn't exist for this purpose; PrestaShop's language scoping is the separate top-level `language` parameter used in the products request above). Requires the Webservice API key to additionally have GET access to the `languages` resource - if it doesn't, the request 403s, `get_shop_languages()` returns `[]`, and language sync silently falls back to off (same as no multilingual plugin) rather than breaking product fetching. Cached in its own transient (`prestaspot_languages_{md5(shop_url)}`) for `DAY_IN_SECONDS`, independent of `cache_duration`, since a shop's configured languages practically never change - much more stable than the product list.
 - **Matching**: case-sensitive-safe compare of two already-lowercased 2-letter strings (both ISO-code-resolving methods and `get_shop_languages()` lowercase their output before comparing/caching).
 
+### Unscoped-request fallback (bug fix, `get_products()`)
+
+`resolve_language_id()` itself still returns `0` when neither plugin is active or nothing matches - that contract is unchanged. But `get_products()` (not `resolve_language_id()`) now treats a `0` result as "try the shop's first available language before giving up", not as "leave the request unscoped":
+
+```php
+$language_id = $this->resolve_language_id($shop_url, $api_key);
+if (0 === $language_id) {
+    $shop_languages = $this->get_shop_languages($shop_url, $api_key);
+    if (!empty($shop_languages)) {
+        $language_id = $shop_languages[0]['id'];
+    }
+}
+```
+
+**Why**: confirmed via live testing (deliberately deactivating Polylang against a shop with a second, incompletely-translated language) that a genuinely unscoped request for a multilingual field - `name`, in particular - makes the webservice's own JSON serialization choke on the untranslated (null) entry and return an HTTP 500, exactly the same underlying quirk `get_shop_currency()` already had to work around for the `symbol` field (see above). `fetch_products()` treats any non-200 response as "no products" - so before this fix, a shop with 2+ configured languages and incomplete translation coverage could silently show an empty product list any time no multilingual plugin resolved a language for the current request. This predates and is independent of the `sort` feature; it was found *while* testing `sort=name_asc` (which exercises the exact same code path) but affects the plain, unsorted product listing equally.
+
+Same permission dependency as `get_shop_currency()`: this fallback only works when the Webservice API key has GET access to `languages` (see `get_shop_languages()` above) - without it, behavior is unchanged from before (unscoped request), which remains safe for a single-language shop and only actually breaks for a multi-language one that also happens to have incomplete translations, i.e., no regression for the common case either way.
+
 ---
 
 ## Rendering (`Presta_Spot_Renderer`)
@@ -206,16 +231,16 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `on_sale`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `on_sale`, `sort`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
-- **Numeric/string options** (`product_count`, `columns`, `layout`, `price_position`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style`/`price_position` additionally validate against their `VIEW_MODES`/`LINK_STYLES`/`PRICE_POSITIONS` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color`/`sale_badge_color` re-validate via `sanitize_hex_color()` since they can arrive from an untrusted shortcode attribute.
+- **Numeric/string options** (`product_count`, `columns`, `layout`, `price_position`, `view_mode`, `sort`, `link_text`, `link_style`, `button_color`, `sale_badge_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style`/`price_position`/`sort` additionally validate against their `VIEW_MODES`/`LINK_STYLES`/`PRICE_POSITIONS`/`SORTS` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color`/`sale_badge_color` re-validate via `sanitize_hex_color()` since they can arrive from an untrusted shortcode attribute.
 - **Boolean options** (`show_image`, `show_name`, `show_description`, `show_price`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
 
 `category_id` and `on_sale` are the odd ones out: both are instance-only filters with **no** global setting to fall back to (there's nothing sensible a site-wide "default category" or "default on-sale-only" would mean) - `category_id` already established this precedent (`absint($args['category_id'] ?? 0)`, `0` = no filter), and `on_sale` follows it exactly (`!empty($args['on_sale'])`, unset/false = no filter).
 
-`link_text` has a further wrinkle: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized) - a PHP class constant can't hold a `__()`-translated string, so the built-in "View in shop" label is applied by the template, not the renderer (see below).
+`link_text` and `sort` both have a further wrinkle in common: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized), not just an intermediate sentinel. For `link_text` it means "use the built-in translated label" (a PHP class constant can't hold a `__()`-translated string, so the template applies it, not the renderer - see below). For `sort` it means "PrestaShop's own, unspecified order" - a real, useful choice in its own right (`SORT_DEFAULT`), not a placeholder for "not decided yet".
 
 The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
 
@@ -266,7 +291,7 @@ When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--but
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `price_position`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`.
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `price_position`, `sort`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`. `sort=""` (the default) is passed straight through like `layout`/`price_position` - the renderer's own sentinel handling resolves it, no special-casing needed here despite `''` being sort's *meaningful* default too (see the Renderer section).
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown". `on_sale` defaults to `'no'` (not the empty-string sentinel) and is always parsed via the same `parse_bool()` - unlike the `show_*` flags it has no settings-level default to fall through to, so there's no "unset" state to distinguish.
 
@@ -280,7 +305,7 @@ Registered via `register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `pricePosition`→`price_position`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`, `saleBadgeColor`→`sale_badge_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `sort`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `pricePosition`→`price_position`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`, `saleBadgeColor`→`sale_badge_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting. `sort`'s block.json default is `""` too, but unlike those two it *does* have a corresponding global setting (`SORT_DEFAULT` is also `""`) - the block's default and the setting's default just happen to coincide, the same way `linkStyle`'s block default (`"link"`) coincides with `LINK_STYLE`'s.
 
 **Element-order pickers are shared code**: `renderElementOrderPicker(options, selectedValue, radioGroupName, onChange)` in `index.js` is the generic version of what was, before 0.10.0, a `renderLayoutPicker()` hardcoded to the `layout` attribute - it now backs both the Card Layout picker (`LAYOUT_OPTIONS`) and the Price Position picker (`PRICE_POSITION_OPTIONS`), since both are "pick one arrangement, preview it as a row of `.prestaspot-layout-block--*` bars" pickers with nothing else attribute-specific in the markup. A new picker of this same shape (options array with `value`/`order`/`label`) only needs a new `*_OPTIONS` array, not a new render function.
 
@@ -295,6 +320,8 @@ Selected state is pure CSS (`:has(input:checked)`), no JS needed for the visual 
 **Button color control**: unlike the other pickers, the actual color value is set via `wp.blockEditor.PanelColorSettings` (the same component core blocks like Paragraph/Button use for their color settings), not a custom control - unlike a 2-3 option enum, "pick any color" isn't a good fit for the visual-card-picker pattern. It's rendered as its own panel, conditionally (`'button' === attributes.linkStyle && el(PanelColorSettings, {...})`) - only shown once Link Style is set to Button. The settings page (plain PHP form, no reactive show/hide) instead always shows the native `<input type="color">` field with a "only used when Shop Link Style is Button" description, matching how `columns`/`view_mode` handle the same kind of conditional relevance.
 
 **Sale badge color control** follows the identical `PanelColorSettings` pattern, but *unconditionally* - there's no other attribute that gates whether the sale indicator can appear (it's driven by each product's own `on_sale` flag, not a setting), so its panel is always rendered rather than behind a `condition && el(...)` check like the button color panel.
+
+**Sort control**: deliberately *not* a visual picker like the others - `SORT_OPTIONS` (7 named, mutually exclusive choices: default, name/price ascending/descending, date newest/oldest) backs a plain `wp.components.SelectControl` in the block and a plain `<select>` on the settings page. A visual picker earns its keep when there's something meaningful to preview (element order, a color swatch); "Price (Low to High)" has no useful visual shorthand, so a picker here would just be a slower, larger dropdown - the standard native control is the better fit.
 
 ---
 

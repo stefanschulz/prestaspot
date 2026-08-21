@@ -54,10 +54,23 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
-3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, and `currencies` rows (that's all PrestaSpot needs) → Save. Tick `languages` too if you're testing the Polylang/WPML language sync (see below).
+3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback").
 4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories, which is enough to exercise `product_count`, `category_id`, and pagination-adjacent behavior without adding real data.
+
+### Testing sort, and the multilingual unscoped-request fallback
+
+`sort=name_asc`/`name_desc` exercises the exact code path that surfaced the "Unscoped-request fallback" bug fix in `Presta_Spot_Api::get_products()` (see ARCHITECTURE.md) - a quick regression check for that fix: with this dev shop's German language fixture in place (see below) and Polylang active and resolving a language, `[prestaspot sort="name_asc"]` should just work. To actually exercise the *fallback* path (no plugin-resolved language), temporarily deactivate Polylang and clear the transient cache:
+
+```bash
+docker exec prestaspot-docker-wp-db-1 mysql -uwordpress -pwordpress wordpress -e "
+UPDATE wp_options SET option_value = 'a:1:{i:0;s:25:\"prestaspot/prestaspot.php\";}' WHERE option_name='active_plugins';
+DELETE FROM wp_options WHERE option_name LIKE '_transient_prestaspot_%';
+"
+```
+
+Products should still render correctly (names, prices, sorted) - if this instead shows "No products to display", the fallback is broken. Reactivate Polylang afterward the same way, with `polylang/polylang.php` added back to the serialized array, and clear the transient cache again.
 
 ### Testing the on-sale filter
 

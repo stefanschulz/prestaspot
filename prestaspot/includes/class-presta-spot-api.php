@@ -22,7 +22,7 @@ class Presta_Spot_Api
         $this->settings = $settings;
     }
 
-    public function get_products(int $limit, int $category_id = 0, bool $on_sale = false): array
+    public function get_products(int $limit, int $category_id = 0, bool $on_sale = false, string $sort = ''): array
     {
         $settings = $this->settings->get_all();
         $shop_url = $settings[Presta_Spot_Settings::SHOP_URL];
@@ -34,20 +34,32 @@ class Presta_Spot_Api
 
         $limit = max(1, $limit);
         $language_id = $this->resolve_language_id($shop_url, $api_key);
-        $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0'));
+        if (0 === $language_id) {
+            // No Polylang/WPML match - still pick *some* shop language rather
+            // than leaving the request unscoped: on a shop with 2+ languages
+            // and incomplete translation coverage, an unscoped request for a
+            // multilingual field (name, description) makes the webservice choke
+            // on its own null-translation JSON and return a 500 - the exact bug
+            // get_shop_currency() below already works around the same way.
+            $shop_languages = $this->get_shop_languages($shop_url, $api_key);
+            if (!empty($shop_languages)) {
+                $language_id = $shop_languages[0]['id'];
+            }
+        }
+        $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0') . '|' . $sort);
         $cached = get_transient($cache_key);
         if ($cached !== false) {
             return $cached;
         }
 
-        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id, $on_sale);
+        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id, $on_sale, $sort);
 
         set_transient($cache_key, $products, $settings[Presta_Spot_Settings::CACHE_DURATION]);
 
         return $products;
     }
 
-    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale): array
+    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale, string $sort): array
     {
         $args = array(
             // "price" here is always tax-excluded - PrestaShop's tax/reduction
@@ -70,6 +82,7 @@ class Presta_Spot_Api
             // as plain strings in that language instead of an {id,value}[] array.
             $args['language'] = (string)$language_id;
         }
+        $args = array_merge($args, $this->build_sort_args($sort));
 
         $url = add_query_arg($args, trailingslashit($shop_url) . 'api/products');
 
@@ -87,6 +100,34 @@ class Presta_Spot_Api
         $currency = $this->get_shop_currency($shop_url, $api_key);
 
         return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency), $raw_products);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function build_sort_args(string $sort): array
+    {
+        $fields = array(
+            Presta_Spot_Settings::SORT_NAME_ASC => array('name', 'ASC'),
+            Presta_Spot_Settings::SORT_NAME_DESC => array('name', 'DESC'),
+            Presta_Spot_Settings::SORT_PRICE_ASC => array('price', 'ASC'),
+            Presta_Spot_Settings::SORT_PRICE_DESC => array('price', 'DESC'),
+            Presta_Spot_Settings::SORT_DATE_ASC => array('date_add', 'ASC'),
+            Presta_Spot_Settings::SORT_DATE_DESC => array('date_add', 'DESC'),
+        );
+        if (!isset($fields[$sort])) {
+            return array();
+        }
+
+        [$field, $direction] = $fields[$sort];
+        $args = array('sort' => $field . '_' . $direction);
+        if ('date_add' === $field) {
+            // Date fields aren't sortable/filterable by default - the
+            // webservice rejects "date_add" outright without this flag.
+            $args['date'] = '1';
+        }
+
+        return $args;
     }
 
     private function normalize_product(array $product, string $shop_url, string $api_key, array $currency): array
