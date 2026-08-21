@@ -283,6 +283,14 @@
                                 setAttributes( { showPrice: value } );
                             },
                         } ),
+                        el( ToggleControl, {
+                            label: __( 'Show Stock Status', 'prestaspot' ),
+                            checked: attributes.showStockStatus,
+                            help: __( 'Only shown for shops that actually track stock.', 'prestaspot' ),
+                            onChange: function ( value ) {
+                                setAttributes( { showStockStatus: value } );
+                            },
+                        } ),
                         el( 'p', { className: 'components-base-control__help' }, __( 'Price Position', 'prestaspot' ) ),
                         renderElementOrderPicker( PRICE_POSITION_OPTIONS, attributes.pricePosition, 'prestaspot-priceposition-' + props.clientId, function ( value ) {
                             setAttributes( { pricePosition: value } );

@@ -22,6 +22,7 @@ class Presta_Spot_Settings
     public const SHOW_NAME = 'show_name';
     public const SHOW_DESCRIPTION = 'show_description';
     public const SHOW_PRICE = 'show_price';
+    public const SHOW_STOCK_STATUS = 'show_stock_status';
     public const PRICE_POSITION = 'price_position';
 
     // Price isn't part of LAYOUT_ELEMENT_ORDER (that would multiply the
@@ -95,6 +96,7 @@ class Presta_Spot_Settings
         self::SHOW_NAME => true,
         self::SHOW_DESCRIPTION => true,
         self::SHOW_PRICE => true,
+        self::SHOW_STOCK_STATUS => true,
         self::PRICE_POSITION => self::PRICE_POSITION_AFTER_NAME,
         self::LAYOUT => self::LAYOUT_IMAGE_NAME_DESCRIPTION,
         self::VIEW_MODE => self::VIEW_MODE_GRID,
@@ -121,6 +123,7 @@ class Presta_Spot_Settings
             self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
             self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
             self::SHOW_PRICE => $this->get_prestaspot_option(self::SHOW_PRICE),
+            self::SHOW_STOCK_STATUS => $this->get_prestaspot_option(self::SHOW_STOCK_STATUS),
             self::PRICE_POSITION => $this->get_prestaspot_option(self::PRICE_POSITION),
             self::LAYOUT => $this->get_prestaspot_option(self::LAYOUT),
             self::VIEW_MODE => $this->get_prestaspot_option(self::VIEW_MODE),
@@ -140,6 +143,7 @@ class Presta_Spot_Settings
         $settings[self::SHOW_NAME] = (bool)$settings[self::SHOW_NAME];
         $settings[self::SHOW_DESCRIPTION] = (bool)$settings[self::SHOW_DESCRIPTION];
         $settings[self::SHOW_PRICE] = (bool)$settings[self::SHOW_PRICE];
+        $settings[self::SHOW_STOCK_STATUS] = (bool)$settings[self::SHOW_STOCK_STATUS];
         $settings[self::PRICE_POSITION] = in_array($settings[self::PRICE_POSITION], self::PRICE_POSITIONS, true)
             ? $settings[self::PRICE_POSITION]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::PRICE_POSITION];

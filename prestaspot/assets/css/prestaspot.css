@@ -90,6 +90,21 @@
     font-weight: 600;
 }
 
+.prestaspot-card-stock {
+    margin: 0;
+    padding: 0.25rem 1rem 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.prestaspot-card-stock--in-stock {
+    color: #2a8f4d;
+}
+
+.prestaspot-card-stock--out-of-stock {
+    color: #d63638;
+}
+
 /* Flat fallback for the ribbon above; colors set inline per-render. */
 .prestaspot-card-badge {
     display: inline-block;
@@ -166,7 +181,8 @@
 
 .prestaspot-list-item-text .prestaspot-card-title,
 .prestaspot-list-item-text .prestaspot-card-description,
-.prestaspot-list-item-text .prestaspot-card-price {
+.prestaspot-list-item-text .prestaspot-card-price,
+.prestaspot-list-item-text .prestaspot-card-stock {
     padding: 0;
 }
 

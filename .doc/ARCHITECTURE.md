@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.13.0
+**Version**: 0.14.0
 
 ---
 
@@ -97,6 +97,7 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `SHOW_NAME` | `show_name` | `true` | bool |
 | `SHOW_DESCRIPTION` | `show_description` | `true` | bool |
 | `SHOW_PRICE` | `show_price` | `true` | bool |
+| `SHOW_STOCK_STATUS` | `show_stock_status` | `true` | bool; only actually renders when the shop tracks stock, see below |
 | `PRICE_POSITION` | `price_position` | `after_name` | string enum: `after_name` or `after_description`, see below |
 | `LAYOUT` | `layout` | `image_name_description` | string enum, see below |
 | `VIEW_MODE` | `view_mode` | `grid` | string enum: `grid` or `list`, see below |
@@ -140,7 +141,7 @@ Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER
 **Normalization** (`normalize_product()`) maps the raw PrestaShop product into the flat shape every template expects:
 
 ```php
-['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string, 'price' => string, 'on_sale' => bool]
+['id' => int, 'name' => string, 'description' => string, 'image_url' => string, 'permalink' => string, 'price' => string, 'on_sale' => bool, 'stock_status' => string]
 ```
 
 `price` is pre-formatted (amount + currency symbol, e.g. `"23.90 €"`) via `format_price()`, not a raw float - the template only ever needs to echo it. It's built from the `price` field's raw value (always tax-excluded in PrestaShop) and `get_shop_currency()`'s symbol/precision (see below); empty string if the `price` field was missing from the response for some reason (template hides the price element entirely in that case, same as a missing `description`).
@@ -153,7 +154,23 @@ Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER
 - **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
 - **Permalink**: always `{shop_url}/index.php?controller=product&id_product={id}` (the ID-based fallback URL) rather than a friendly/rewritten URL — this works regardless of the shop's URL-rewrite configuration, at the cost of not being a "pretty" URL.
 
-**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale|sort)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id, `on_sale`, and `sort` are all part of the key specifically so different languages, sale-filtered vs. unfiltered, or differently-sorted requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered).
+**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale|sort)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id, `on_sale`, and `sort` are all part of the key specifically so different languages, sale-filtered vs. unfiltered, or differently-sorted requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered). Stock quantities aren't a separate cache key - they're fetched once per cache-miss render and baked into the cached product array, same as price/currency.
+
+### Stock status (`is_stock_managed()`, `get_stock_quantities()`)
+
+**`products.quantity` doesn't work** - confirmed by reading PrestaShop's own `Product` class source: its `webserviceParameters` entry is `['getter' => false, 'setter' => false]`, meaning the webservice just reads the plain `$this->quantity` property directly rather than computing it - and that property is never populated during the generic object-hydration path the webservice uses to build a `/api/products` response (stock lives in a separate table, `ps_stock_available`, not a `ps_product` column). Live testing confirmed this: a product with `quantity=300` in the database consistently read back `0` via `/api/products`, on both the collection and single-resource endpoints. So `display=[...]` never requests `quantity` at all - it would just be zero for every product, indistinguishable from genuinely being out of stock.
+
+Real quantities come from the dedicated `stock_availables` resource instead, fetched in bulk (`get_stock_quantities(string $shop_url, string $api_key, int[] $product_ids): array`, returning `id_product => quantity`) via one extra request per cache-miss render:
+
+```
+GET {shop_url}/api/stock_availables?display=[id_product,quantity]&filter[id_product]=[1|2|3]&filter[id_product_attribute]=0
+```
+
+`filter[id_product]=[...]` is PrestaShop's OR-list filter syntax (pipe-separated), confirmed working for an arbitrary set of ids in one call - avoids an N+1 request per product. `id_product_attribute=0` is PrestaShop's own maintained aggregate stock row per product: for a simple product it's that product's own quantity; for one with combinations, it's kept in sync as the sum across all combinations (confirmed live: a product with 8 combinations of 300 each read back exactly 2400 at `id_product_attribute=0`) - so the same filter value works correctly for both cases without needing to know which type a product is. Requires the Webservice API key to have GET access to `stock_availables`; on any failure the map is empty and every product's `stock_status` falls back to `''` (not shown), same fallback as everything else in this file.
+
+`is_stock_managed(string $shop_url, string $api_key): bool` gates the whole feature on PrestaShop's own shop-wide "Enable stock management" setting (`PS_STOCK_MANAGEMENT`, fetched from `GET {shop_url}/api/configurations?filter[name]=PS_STOCK_MANAGEMENT`, cached a day like the other shop-level flags) - **not** just whether `stock_availables` happens to return a number. A shop can have stock management enabled but simply never bother updating quantities for products that aren't really being tracked (a real, observed state on the dev demo shop - `PS_STOCK_MANAGEMENT=1` yet every product's quantity sat at an unpopulated `0` from the initial import); this flag is the one clean signal PrestaShop itself exposes for "is stock actually meant to be tracked here" per the plugin's design goal of not showing a false "Out of Stock" off data nobody maintains. `get_stock_quantities()` is only called at all when this returns `true` - defaults to `false` (don't show stock status) on any failure, since a wrongly-shown "Out of Stock" is worse than not showing the indicator. Requires GET access to `configurations`.
+
+`normalize_product()`'s `stock_status` is `'in_stock'`/`'out_of_stock'` (quantity `> 0`/`<= 0`) when a quantity was found for that product, `''` otherwise (stock not managed shop-wide, or this specific product's id wasn't in the bulk response for some reason) - the template hides the element entirely in the `''` case, same pattern as a missing `description`/`price`.
 
 ### Sort (`build_sort_args()`)
 
@@ -241,12 +258,12 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `category_name`, `on_sale`, `sort`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `category_name`, `on_sale`, `sort`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `show_stock_status`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
 - **Numeric/string options** (`product_count`, `columns`, `layout`, `price_position`, `view_mode`, `sort`, `link_text`, `link_style`, `button_color`, `sale_badge_color`): `!empty($args[$key])` - a falsy value (`0`, `''`, unset) means "not specified, use the setting default". This works because `0`/`''` are never valid explicit values for these options. `view_mode`/`link_style`/`price_position`/`sort` additionally validate against their `VIEW_MODES`/`LINK_STYLES`/`PRICE_POSITIONS`/`SORTS` arrays (an unrecognized string falls back to the setting default, same as an empty one); `button_color`/`sale_badge_color` re-validate via `sanitize_hex_color()` since they can arrive from an untrusted shortcode attribute.
-- **Boolean options** (`show_image`, `show_name`, `show_description`, `show_price`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
+- **Boolean options** (`show_image`, `show_name`, `show_description`, `show_price`, `show_stock_status`): `array_key_exists($key, $args)` - because `false` **is** a valid explicit value (hide this element) and must be distinguishable from "key absent, use the default". Using `!empty()` here would be a bug: an explicit `false` would be silently treated as "not specified".
 
 `category_id` and `on_sale` are the odd ones out: both are instance-only filters with **no** global setting to fall back to (there's nothing sensible a site-wide "default category" or "default on-sale-only" would mean) - `category_id` already established this precedent (`absint($args['category_id'] ?? 0)`, `0` = no filter), and `on_sale` follows it exactly (`!empty($args['on_sale'])`, unset/false = no filter).
 
@@ -264,6 +281,8 @@ An explicit numeric `category_id` always wins if both are somehow given; a `cate
 `link_text` and `sort` both have a further wrinkle in common: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized), not just an intermediate sentinel. For `link_text` it means "use the built-in translated label" (a PHP class constant can't hold a `__()`-translated string, so the template applies it, not the renderer - see below). For `sort` it means "PrestaShop's own, unspecified order" - a real, useful choice in its own right (`SORT_DEFAULT`), not a placeholder for "not decided yet".
 
 The renderer resolves `$element_order` from `Presta_Spot_Settings::get_layout_element_order($layout)` and passes everything to `templates/product-cards.php` via `include` (relies on the including scope's local variables, same pattern DinkyChat uses for its templates).
+
+`'stock'` is spliced into `$element_order` right after `'price'` (post-splice, so it lands correctly regardless of `price_position`) - unlike price, it has no position setting of its own; always immediately follows the price it's contextually about.
 
 ---
 
@@ -312,7 +331,7 @@ When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--but
 
 ## Shortcode (`Presta_Spot_Shortcode`)
 
-`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `price_position`, `sort`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`. `sort=""` (the default) is passed straight through like `layout`/`price_position` - the renderer's own sentinel handling resolves it, no special-casing needed here despite `''` being sort's *meaningful* default too (see the Renderer section).
+`[prestaspot]` → `display_products()`. All attributes default to a sentinel (`0` for numbers, `''` for strings/booleans, including `layout`, `price_position`, `sort`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`) via `shortcode_atts()`; `show_image`/`show_name`/`show_description`/`show_price`/`show_stock_status` are only added to the renderer args array when the shortcode attribute wasn't the empty-string sentinel, so omitting them correctly falls through to the settings default rather than being coerced to `false`. `sort=""` (the default) is passed straight through like `layout`/`price_position` - the renderer's own sentinel handling resolves it, no special-casing needed here despite `''` being sort's *meaningful* default too (see the Renderer section).
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown". `on_sale` defaults to `'no'` (not the empty-string sentinel) and is always parsed via the same `parse_bool()` - unlike the `show_*` flags it has no settings-level default to fall through to, so there's no "unset" state to distinguish.
 
@@ -357,7 +376,7 @@ The shortcode has no equivalent client-side control to feed, which is exactly wh
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 
-**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `sort`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `pricePosition`→`price_position`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`, `saleBadgeColor`→`sale_badge_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting. `sort`'s block.json default is `""` too, but unlike those two it *does* have a corresponding global setting (`SORT_DEFAULT` is also `""`) - the block's default and the setting's default just happen to coincide, the same way `linkStyle`'s block default (`"link"`) coincides with `LINK_STYLE`'s.
+**Attributes** → renderer args mapping (camelCase in the block, snake_case internally): `productCount`→`product_count`, `categoryId`→`category_id`, `onSale`→`on_sale`, `sort`, `columns`, `showImage`→`show_image`, `showName`→`show_name`, `showDescription`→`show_description`, `showPrice`→`show_price`, `showStockStatus`→`show_stock_status`, `pricePosition`→`price_position`, `layout`, `viewMode`→`view_mode`, `linkText`→`link_text`, `linkStyle`→`link_style`, `buttonColor`→`button_color`, `saleBadgeColor`→`sale_badge_color`. Unlike the shortcode, block attributes always have concrete values (block.json `default`s) - there's no "unset" state once a block is inserted, so a block instance doesn't dynamically track later changes to the global settings default; it's a snapshot taken at insertion time, same as any other Gutenberg block attribute. `linkText` is the one exception worth noting: its block.json default is `""` (not a hardcoded "View in shop"), specifically so a freshly inserted block still resolves to the *translated* built-in label via the template, rather than baking English text into every new block. `onSale` defaults to `false`, matching `categoryId`'s `0` default - both are "no filter" defaults with no corresponding global setting. `sort`'s block.json default is `""` too, but unlike those two it *does* have a corresponding global setting (`SORT_DEFAULT` is also `""`) - the block's default and the setting's default just happen to coincide, the same way `linkStyle`'s block default (`"link"`) coincides with `LINK_STYLE`'s.
 
 **Element-order pickers are shared code**: `renderElementOrderPicker(options, selectedValue, radioGroupName, onChange)` in `index.js` is the generic version of what was, before 0.10.0, a `renderLayoutPicker()` hardcoded to the `layout` attribute - it now backs both the Card Layout picker (`LAYOUT_OPTIONS`) and the Price Position picker (`PRICE_POSITION_OPTIONS`), since both are "pick one arrangement, preview it as a row of `.prestaspot-layout-block--*` bars" pickers with nothing else attribute-specific in the markup. A new picker of this same shape (options array with `value`/`order`/`label`) only needs a new `*_OPTIONS` array, not a new render function.
 

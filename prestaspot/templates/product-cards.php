@@ -6,7 +6,8 @@
  * @var bool $show_name
  * @var bool $show_description
  * @var bool $show_price
- * @var string[] $element_order Render order of 'image'/'name'/'price'/'description'; the "View in shop" link always renders last.
+ * @var bool $show_stock_status
+ * @var string[] $element_order Render order of 'image'/'name'/'price'/'stock'/'description'; the "View in shop" link always renders last.
  * @var string $view_mode 'grid' (card grid) or 'list' (stacked rows)
  * @var string $link_text Custom shop-link label, or '' to use the built-in translated default
  * @var string $link_style 'link' (plain text link) or 'button'
@@ -24,7 +25,7 @@ $prestaspot_sale_badge_text_color = Presta_Spot_Renderer::get_contrasting_text_c
 $prestaspot_sale_badge_style = sprintf(' style="background-color: %1$s; color: %2$s;"', esc_attr($sale_badge_color), esc_attr($prestaspot_sale_badge_text_color));
 
 // Shared by both the grid and list render paths below, so the markup only exists once.
-$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description, $show_price, $prestaspot_sale_badge_style): string {
+$prestaspot_render_element = function (string $element, array $product) use ($show_image, $show_name, $show_description, $show_price, $show_stock_status, $prestaspot_sale_badge_style): string {
     if ('image' === $element) {
         if (!$show_image || empty($product['image_url'])) {
             return '';
@@ -67,6 +68,18 @@ $prestaspot_render_element = function (string $element, array $product) use ($sh
         return sprintf('<p class="prestaspot-card-price">%s</p>', esc_html($product['price']));
     }
 
+    if ('stock' === $element) {
+        if (!$show_stock_status || empty($product['stock_status'])) {
+            return '';
+        }
+        $label = 'in_stock' === $product['stock_status'] ? __('In Stock', 'prestaspot') : __('Out of Stock', 'prestaspot');
+        return sprintf(
+            '<p class="prestaspot-card-stock prestaspot-card-stock--%1$s">%2$s</p>',
+            esc_attr(str_replace('_', '-', $product['stock_status'])),
+            esc_html($label)
+        );
+    }
+
     return '';
 };
 
@@ -101,7 +114,7 @@ $prestaspot_render_link = function (array $product) use ($prestaspot_link_label,
 
 // Dropped up front, not just blanked at render time, so a hidden image
 // correctly merges an otherwise-split name/description in list mode below.
-$prestaspot_visible_elements = array_values(array_filter($element_order, function (string $element) use ($show_image, $show_name, $show_description, $show_price): bool {
+$prestaspot_visible_elements = array_values(array_filter($element_order, function (string $element) use ($show_image, $show_name, $show_description, $show_price, $show_stock_status): bool {
     if ('image' === $element) {
         return $show_image;
     }
@@ -113,6 +126,9 @@ $prestaspot_visible_elements = array_values(array_filter($element_order, functio
     }
     if ('price' === $element) {
         return $show_price;
+    }
+    if ('stock' === $element) {
+        return $show_stock_status;
     }
     return false;
 }));

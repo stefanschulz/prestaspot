@@ -58,6 +58,8 @@ class Presta_Spot_Api
     {
         $args = array(
             // "price" is tax-excluded - the tax-aware computed-price mechanism only works per-product, not on this list endpoint.
+            // Stock is deliberately NOT requested here - "quantity" has no getter on Product's webservice
+            // mapping and always comes back 0; real stock is fetched separately via get_stock_quantities().
             'display' => '[id,name,description_short,link_rewrite,id_default_image,price,on_sale]',
             'output_format' => 'JSON',
             'filter[active]' => '1',
@@ -90,8 +92,11 @@ class Presta_Spot_Api
         $body = json_decode(wp_remote_retrieve_body($response), true);
         $raw_products = $body['products'] ?? array();
         $currency = $this->get_shop_currency($shop_url, $api_key);
+        $quantities = $this->is_stock_managed($shop_url, $api_key)
+            ? $this->get_stock_quantities($shop_url, $api_key, array_map(fn($product) => absint($product['id'] ?? 0), $raw_products))
+            : array();
 
-        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency), $raw_products);
+        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency, $quantities), $raw_products);
     }
 
     private function build_sort_args(string $sort): array
@@ -118,7 +123,7 @@ class Presta_Spot_Api
         return $args;
     }
 
-    private function normalize_product(array $product, string $shop_url, string $api_key, array $currency): array
+    private function normalize_product(array $product, string $shop_url, string $api_key, array $currency, array $quantities): array
     {
         $id = absint($product['id'] ?? 0);
 
@@ -130,7 +135,51 @@ class Presta_Spot_Api
             'permalink' => trailingslashit($shop_url) . 'index.php?controller=product&id_product=' . $id,
             'price' => isset($product['price']) ? $this->format_price((float)$product['price'], $currency) : '',
             'on_sale' => !empty($product['on_sale']),
+            // '' when the shop doesn't track stock, or this product's quantity couldn't be fetched.
+            'stock_status' => isset($quantities[$id]) ? ($quantities[$id] > 0 ? 'in_stock' : 'out_of_stock') : '',
         );
+    }
+
+    /**
+     * Bulk-fetches real stock quantities for the given product ids in one request.
+     * Not from /api/products - its "quantity" field has no getter and always
+     * reads back 0 (confirmed against PrestaShop's own Product class source).
+     * id_product_attribute=0 is PrestaShop's own maintained aggregate row -
+     * a plain product's own stock, or the sum across all its combinations.
+     *
+     * @param int[] $product_ids
+     * @return array<int, int> id_product => quantity
+     */
+    private function get_stock_quantities(string $shop_url, string $api_key, array $product_ids): array
+    {
+        $product_ids = array_values(array_unique(array_filter($product_ids)));
+        if (empty($product_ids)) {
+            return array();
+        }
+
+        $url = add_query_arg(array(
+            'display' => '[id_product,quantity]',
+            'output_format' => 'JSON',
+            'filter[id_product]' => '[' . implode('|', $product_ids) . ']',
+            'filter[id_product_attribute]' => '0',
+        ), trailingslashit($shop_url) . 'api/stock_availables');
+
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Basic ' . base64_encode($api_key . ':')),
+            'timeout' => 10,
+        ));
+
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return array();
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $quantities = array();
+        foreach ($body['stock_availables'] ?? array() as $stock) {
+            $quantities[absint($stock['id_product'] ?? 0)] = (int)($stock['quantity'] ?? 0);
+        }
+
+        return $quantities;
     }
 
     private function format_price(float $amount, array $currency): string
@@ -311,6 +360,47 @@ class Presta_Spot_Api
         set_transient($cache_key, $currency, DAY_IN_SECONDS);
 
         return $currency;
+    }
+
+    /**
+     * Shop-wide "is stock even tracked" flag (PS_STOCK_MANAGEMENT) - a demo/import
+     * shop can have every product's quantity sitting at an unpopulated 0, so
+     * this is checked before treating quantity as meaningful. Defaults to
+     * false (don't show stock status) on any failure, since a false "out of
+     * stock" is worse than not showing the indicator at all.
+     */
+    private function is_stock_managed(string $shop_url, string $api_key): bool
+    {
+        $cache_key = 'prestaspot_stock_managed_' . md5($shop_url);
+        $cached = get_transient($cache_key);
+        if ($cached !== false) {
+            return '1' === $cached;
+        }
+
+        $managed = '0';
+
+        $url = add_query_arg(array(
+            'display' => '[name,value]',
+            'output_format' => 'JSON',
+            'filter[name]' => 'PS_STOCK_MANAGEMENT',
+        ), trailingslashit($shop_url) . 'api/configurations');
+
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Basic ' . base64_encode($api_key . ':')),
+            'timeout' => 10,
+        ));
+
+        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $first = $body['configurations'][0] ?? null;
+            if ($first && !empty($first['value'])) {
+                $managed = '1';
+            }
+        }
+
+        set_transient($cache_key, $managed, DAY_IN_SECONDS);
+
+        return '1' === $managed;
     }
 
     /**

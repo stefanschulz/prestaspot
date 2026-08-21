@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, category_name?: ?string, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, category_name?: ?string, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, show_stock_status?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -45,6 +45,7 @@ class Presta_Spot_Renderer
         $show_name = array_key_exists('show_name', $args) ? (bool)$args['show_name'] : $settings[Presta_Spot_Settings::SHOW_NAME];
         $show_description = array_key_exists('show_description', $args) ? (bool)$args['show_description'] : $settings[Presta_Spot_Settings::SHOW_DESCRIPTION];
         $show_price = array_key_exists('show_price', $args) ? (bool)$args['show_price'] : $settings[Presta_Spot_Settings::SHOW_PRICE];
+        $show_stock_status = array_key_exists('show_stock_status', $args) ? (bool)$args['show_stock_status'] : $settings[Presta_Spot_Settings::SHOW_STOCK_STATUS];
         $price_position = !empty($args['price_position']) && in_array($args['price_position'], Presta_Spot_Settings::PRICE_POSITIONS, true)
             ? $args['price_position']
             : $settings[Presta_Spot_Settings::PRICE_POSITION];
@@ -53,6 +54,8 @@ class Presta_Spot_Renderer
         // Price isn't part of the layout picker; spliced in after name/description instead.
         $price_anchor = Presta_Spot_Settings::PRICE_POSITION_AFTER_DESCRIPTION === $price_position ? 'description' : 'name';
         array_splice($element_order, array_search($price_anchor, $element_order, true) + 1, 0, array('price'));
+        // Stock status always sits right after price - not independently positionable.
+        array_splice($element_order, array_search('price', $element_order, true) + 1, 0, array('stock'));
         $view_mode = !empty($args['view_mode']) && in_array($args['view_mode'], Presta_Spot_Settings::VIEW_MODES, true)
             ? $args['view_mode']
             : $settings[Presta_Spot_Settings::VIEW_MODE];

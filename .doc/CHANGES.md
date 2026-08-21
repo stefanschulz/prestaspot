@@ -1,5 +1,12 @@
 # PrestaSpot - Changelog
 
+## 0.14.0 (2026-08-21) - Stock Status Indicator
+
+- New `show_stock_status` setting/attribute/shortcode-parameter (default on) shows an "In Stock"/"Out of Stock" label right after the price. Only actually renders on shops that have PrestaShop's own "Enable stock management" setting on - a shop that doesn't track stock, or hasn't populated it for a given product, never gets a potentially-false label rather than showing one anyway.
+- **Discovered while building this: the `products.quantity` webservice field doesn't work.** Confirmed in PrestaShop's own `Product` class source (`webserviceParameters['quantity'] = ['getter' => false, 'setter' => false]`, so the webservice reads a property that's never populated during normal request handling) and live-tested (a product with `quantity=300` in the database read back `0` via `/api/products`, both collection and single-resource). Real stock now comes from a bulk request to the `stock_availables` resource instead (`Presta_Spot_Api::get_stock_quantities()`), using PrestaShop's OR-list filter syntax to fetch every visible product's quantity in one call rather than one request per product; `id_product_attribute=0` is confirmed to be PrestaShop's own maintained aggregate row, working correctly for both simple products and ones with combinations.
+- New `Presta_Spot_Api::is_stock_managed()` checks the shop-wide `PS_STOCK_MANAGEMENT` configuration value (via the `configurations` resource) before trusting any quantity data at all - this is what makes "shop doesn't track stock" a real, honest fallback rather than a per-product guess.
+- Requires the Webservice API key to additionally have GET access to the `configurations` and `stock_availables` resources.
+
 ## 0.13.0 (2026-08-21) - Category Picker + Name-Based Category Filter
 
 - The block's "Category ID" numeric field is now a real dropdown of the shop's actual category names, fetched live from PrestaShop rather than requiring the editor to know a raw numeric ID. Backed by a new internal REST route (`GET /prestaspot/v1/categories`, gated behind `edit_posts`) that `Presta_Spot_Block` registers and `index.js` calls via `wp.apiFetch()` on mount; falls back to the previous plain numeric field if the fetch fails or returns nothing (shop not configured, API key lacking `categories` access, etc.) so the block never becomes unusable.

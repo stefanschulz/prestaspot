@@ -294,8 +294,22 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
                         </label>
                         <?php echo $prestaspot_reset_button('prestaspot_show_price', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_PRICE] ? '1' : '0'); ?>
                     </p>
+                    <p>
+                        <label for="prestaspot_show_stock_status">
+                            <input type="hidden" name="prestaspot_show_stock_status" value="0" />
+                            <input
+                                type="checkbox"
+                                id="prestaspot_show_stock_status"
+                                name="prestaspot_show_stock_status"
+                                value="1"
+                                <?php checked($settings['show_stock_status']); ?>
+                            />
+                            <?php esc_html_e('Show stock status', 'prestaspot'); ?>
+                        </label>
+                        <?php echo $prestaspot_reset_button('prestaspot_show_stock_status', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_STOCK_STATUS] ? '1' : '0'); ?>
+                    </p>
                     <p class="description">
-                        <?php esc_html_e('Default visibility of product card elements. Can be overridden per block or shortcode.', 'prestaspot'); ?>
+                        <?php esc_html_e('Default visibility of product card elements. Can be overridden per block or shortcode. Stock status only shows for shops that actually track stock (PrestaShop\'s "Enable stock management" setting).', 'prestaspot'); ?>
                     </p>
                 </td>
             </tr>
@@ -436,5 +450,5 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" category_name="" on_sale="no" sort="" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" price_position="after_name" link_text="Shop now" link_style="button" button_color="#2271b1" sale_badge_color="#e63946"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" category_name="" on_sale="no" sort="" view_mode="grid" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes" show_price="yes" show_stock_status="yes" price_position="after_name" link_text="Shop now" link_style="button" button_color="#2271b1" sale_badge_color="#e63946"]</code></p>
 </div>

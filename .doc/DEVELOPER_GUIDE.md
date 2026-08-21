@@ -54,7 +54,7 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
-3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, `categories`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback"). Without `categories`, the block's category picker silently falls back to the old plain numeric field - fine for spot-checking other features, but worth remembering if that fallback shows up unexpectedly during a test.
+3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, `categories`, `configurations`, `stock_availables`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback"). Without `categories`, the block's category picker silently falls back to the old plain numeric field - fine for spot-checking other features, but worth remembering if that fallback shows up unexpectedly during a test. Without `configurations`/`stock_availables`, stock status just never shows, same graceful-degradation story.
 4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories (`Men`, `Women`, `Art`, `Stationery`, `Home Accessories`, plus the structural `Root`/`Home` categories every PrestaShop install has), which is enough to exercise `product_count`, `category_id`/`category_name`, and pagination-adjacent behavior without adding real data. Not every category has products assigned, though (`Accessories`/`Clothes` are empty on a fresh install) - worth checking `filter[id_category_default]` product counts directly against the webservice before assuming a "no products" result is a bug rather than just an empty category.
@@ -90,6 +90,22 @@ VALUES
 **Both `ps_product.on_sale` and `ps_product_shop.on_sale` need updating** - PrestaShop's `Product` class defines `on_sale` as a shop-scoped field (`'shop' => true` in `Product::$definition`), so the webservice's `on_sale` display field (and, seemingly, `filter[on_sale]` too - not fully confirmed, see `.doc/ARCHITECTURE.md`) actually reads/writes `ps_product_shop`. Updating only the legacy `ps_product` column was tried first and left `filter[on_sale]=1` matching correctly while the returned `on_sale` field for those same products still read back `0` - a confusing half-working state that's easy to reintroduce if this fixture is ever redone by hand instead of copy-pasted.
 
 This is a persisted fixture (unlike the throwaway WPML test double below) - the "Sale Test" page in the dev environment uses `[prestaspot product_count="6" on_sale="yes"]` and expects exactly these two products (Hummingbird t-shirt/sweater) to show up, each with a "Sale" badge. If it ever needs resetting, set both `on_sale` columns back to `0` for products 1/2 plus deleting the matching `ps_specific_price` rows reverts it.
+
+### Testing stock status
+
+Every fixture product's `ps_stock_available.quantity` (`id_product_attribute=0` row) is nonzero by default, so a plain `[prestaspot show_stock_status="yes"]` block already shows "In Stock" everywhere - not enough on its own to confirm the "Out of Stock" and "shop doesn't track stock" paths both work. Product 3 ("The best is yet to come' Framed poster", already visible on the "Sale Test" page) is a **persisted** fixture for the out-of-stock case:
+
+```bash
+docker exec prestaspot-docker-ps-db-1 mysql -uprestashop -pprestashop prestashop -e "UPDATE ps_stock_available SET quantity=0 WHERE id_product=3 AND id_product_attribute=0;"
+```
+
+To exercise the shop-wide "stock not tracked" fallback, temporarily flip `PS_STOCK_MANAGEMENT` off and clear the transient cache - every stock label (including product 3's "Out of Stock") should disappear entirely, not flip to some other state:
+
+```bash
+docker exec prestaspot-docker-ps-db-1 mysql -uprestashop -pprestashop prestashop -e "UPDATE ps_configuration SET value=0 WHERE name='PS_STOCK_MANAGEMENT' AND id_shop_group IS NULL AND id_shop IS NULL;"
+```
+
+Set it back to `1` afterward - this is a real shop setting, not a throwaway test flag, and other stock-status testing depends on it being on.
 
 ### Testing the multilingual language sync
 

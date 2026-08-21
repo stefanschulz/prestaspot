@@ -39,6 +39,7 @@ class Presta_Spot_Shortcode
             'show_name' => '',
             'show_description' => '',
             'show_price' => '',
+            'show_stock_status' => '',
             'price_position' => '',
             'sort' => '',
             'link_text' => '',
@@ -63,7 +64,7 @@ class Presta_Spot_Shortcode
             'sale_badge_color' => $attributes['sale_badge_color'],
         );
 
-        foreach (array('show_image', 'show_name', 'show_description', 'show_price') as $flag) {
+        foreach (array('show_image', 'show_name', 'show_description', 'show_price', 'show_stock_status') as $flag) {
             if ($attributes[$flag] !== '') {
                 $render_args[$flag] = $this->parse_bool($attributes[$flag]);
             }
