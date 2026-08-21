@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, category_name?: ?string, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -32,6 +32,13 @@ class Presta_Spot_Renderer
 
         $product_count = !empty($args['product_count']) ? absint($args['product_count']) : $settings[Presta_Spot_Settings::PRODUCT_COUNT];
         $category_id = absint($args['category_id'] ?? 0);
+        // category_id (numeric, precise) wins if both are given; category_name
+        // only kicks in as a lookup when no explicit id was set - this is the
+        // shortcode's name-based equivalent to the block's category dropdown,
+        // which already resolves straight to an id client-side.
+        if (0 === $category_id && !empty($args['category_name'])) {
+            $category_id = $this->api->resolve_category_id_by_name((string)$args['category_name']);
+        }
         $on_sale = !empty($args['on_sale']);
         $sort = !empty($args['sort']) && in_array($args['sort'], Presta_Spot_Settings::SORTS, true)
             ? $args['sort']

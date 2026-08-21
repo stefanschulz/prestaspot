@@ -54,10 +54,10 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
-3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback").
+3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, `categories`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback"). Without `categories`, the block's category picker silently falls back to the old plain numeric field - fine for spot-checking other features, but worth remembering if that fallback shows up unexpectedly during a test.
 4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
-The demo shop comes pre-seeded with ~19 fixture products across a few categories, which is enough to exercise `product_count`, `category_id`, and pagination-adjacent behavior without adding real data.
+The demo shop comes pre-seeded with ~19 fixture products across a few categories (`Men`, `Women`, `Art`, `Stationery`, `Home Accessories`, plus the structural `Root`/`Home` categories every PrestaShop install has), which is enough to exercise `product_count`, `category_id`/`category_name`, and pagination-adjacent behavior without adding real data. Not every category has products assigned, though (`Accessories`/`Clothes` are empty on a fresh install) - worth checking `filter[id_category_default]` product counts directly against the webservice before assuming a "no products" result is a bug rather than just an empty category.
 
 ### Testing sort, and the multilingual unscoped-request fallback
 

@@ -16,16 +16,19 @@ if (!defined('ABSPATH')) {
 class Presta_Spot_Block
 {
     private Presta_Spot_Renderer $renderer;
+    private Presta_Spot_Api $api;
 
-    public function __construct(Presta_Spot_Renderer $renderer)
+    public function __construct(Presta_Spot_Renderer $renderer, Presta_Spot_Api $api)
     {
         $this->renderer = $renderer;
+        $this->api = $api;
     }
 
-    public static function setup(Presta_Spot_Renderer $renderer): Presta_Spot_Block
+    public static function setup(Presta_Spot_Renderer $renderer, Presta_Spot_Api $api): Presta_Spot_Block
     {
-        $block = new Presta_Spot_Block($renderer);
+        $block = new Presta_Spot_Block($renderer, $api);
         add_action('init', array($block, 'register'));
+        add_action('rest_api_init', array($block, 'register_rest_routes'));
         return $block;
     }
 
@@ -34,6 +37,25 @@ class Presta_Spot_Block
         register_block_type(PRESTASPOT_PLUGIN_DIR . 'blocks/product-list', array(
             'render_callback' => array($this, 'render'),
         ));
+    }
+
+    /**
+     * Backs the block editor's category picker (see index.js) - not used by
+     * the shortcode, which resolves category_name server-side instead since
+     * it has no equivalent client-side UI to feed.
+     */
+    public function register_rest_routes(): void
+    {
+        register_rest_route('prestaspot/v1', '/categories', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_categories_route'),
+            'permission_callback' => fn() => current_user_can('edit_posts'),
+        ));
+    }
+
+    public function get_categories_route(): WP_REST_Response
+    {
+        return new WP_REST_Response($this->api->get_categories());
     }
 
     public function render(array $attributes): string

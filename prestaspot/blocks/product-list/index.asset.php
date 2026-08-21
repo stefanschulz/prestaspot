@@ -7,6 +7,7 @@ return array(
         'wp-components',
         'wp-server-side-render',
         'wp-i18n',
+        'wp-api-fetch',
     ),
-    'version' => '0.12.0',
+    'version' => '0.13.0',
 );

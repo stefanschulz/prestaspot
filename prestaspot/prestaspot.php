@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PrestaSpot
  * Description: Displays content from a connected PrestaShop store (starting with products) as cards, via a Gutenberg block or a shortcode.
- * Version: 0.12.0
+ * Version: 0.13.0
  * Author: Stefan Schulz
  * Text Domain: prestaspot
  * Domain Path: /languages
@@ -96,7 +96,7 @@ class Presta_Spot_Plugin
     {
         $renderer = new Presta_Spot_Renderer($this->settings, $this->api);
         Presta_Spot_Shortcode::setup($renderer);
-        Presta_Spot_Block::setup($renderer);
+        Presta_Spot_Block::setup($renderer, $this->api);
         Presta_Spot_Frontend::setup();
     }
 }

@@ -30,6 +30,7 @@ class Presta_Spot_Shortcode
         $attributes = shortcode_atts(array(
             'product_count' => 0,
             'category_id' => 0,
+            'category_name' => '',
             'on_sale' => 'no',
             'columns' => 0,
             'layout' => '',
@@ -49,6 +50,7 @@ class Presta_Spot_Shortcode
         $render_args = array(
             'product_count' => (int)$attributes['product_count'],
             'category_id' => (int)$attributes['category_id'],
+            'category_name' => $attributes['category_name'],
             'on_sale' => $this->parse_bool($attributes['on_sale']),
             'columns' => (int)$attributes['columns'],
             'layout' => $attributes['layout'],

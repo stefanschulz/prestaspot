@@ -1,6 +1,9 @@
-( function ( blocks, element, blockEditor, components, ServerSideRender, i18n ) {
+( function ( blocks, element, blockEditor, components, ServerSideRender, i18n, apiFetch ) {
     const el = element.createElement;
+    const useState = element.useState;
+    const useEffect = element.useEffect;
     const __ = i18n.__;
+    const sprintf = i18n.sprintf;
     const registerBlockType = blocks.registerBlockType;
     const InspectorControls = blockEditor.InspectorControls;
     const PanelColorSettings = blockEditor.PanelColorSettings;
@@ -133,11 +136,56 @@
         );
     }
 
+    // "All Categories" plus one option per fetched category (id as string
+    // value, PrestaShop's actual category name as label). If the block's
+    // stored categoryId isn't among the fetched (active) categories - e.g. an
+    // inactive/deleted category, or the fetch simply hasn't resolved yet -
+    // a synthetic option keeps that value visibly selected instead of the
+    // control silently looking like it reset to "All".
+    function renderCategoryControl( categories, categoryId, onChange ) {
+        const knownIds = categories.map( function ( category ) {
+            return category.id;
+        } );
+        const options = [ { value: '0', label: __( 'All Categories', 'prestaspot' ) } ].concat(
+            categories.map( function ( category ) {
+                return { value: String( category.id ), label: category.name };
+            } )
+        );
+        if ( categoryId > 0 && knownIds.indexOf( categoryId ) === -1 ) {
+            options.push( {
+                value: String( categoryId ),
+                label: sprintf( __( 'Category #%s (not in list)', 'prestaspot' ), categoryId ),
+            } );
+        }
+
+        return el( SelectControl, {
+            label: __( 'Category', 'prestaspot' ),
+            value: String( categoryId ),
+            options: options,
+            onChange: function ( value ) {
+                onChange( parseInt( value, 10 ) || 0 );
+            },
+        } );
+    }
+
     registerBlockType( 'prestaspot/product-list', {
         edit: function ( props ) {
             const attributes = props.attributes;
             const setAttributes = props.setAttributes;
             const blockProps = useBlockProps();
+            // null = still loading (or nothing fetched yet); [] after a failed
+            // fetch (no shop configured, permissions missing, etc.) - both
+            // fall back to the plain numeric field below rather than blocking
+            // the block on category data that may never arrive.
+            const [ categories, setCategories ] = useState( null );
+
+            useEffect( function () {
+                apiFetch( { path: '/prestaspot/v1/categories' } )
+                    .then( setCategories )
+                    .catch( function () {
+                        setCategories( [] );
+                    } );
+            }, [] );
 
             return el(
                 'div',
@@ -175,15 +223,19 @@
                             min: 1,
                             max: 6,
                         } ),
-                        el( TextControl, {
-                            label: __( 'Category ID', 'prestaspot' ),
-                            type: 'number',
-                            value: attributes.categoryId,
-                            help: __( '0 shows products regardless of category.', 'prestaspot' ),
-                            onChange: function ( value ) {
-                                setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
-                            },
-                        } ),
+                        categories && categories.length > 0
+                            ? renderCategoryControl( categories, attributes.categoryId, function ( value ) {
+                                setAttributes( { categoryId: value } );
+                            } )
+                            : el( TextControl, {
+                                label: __( 'Category ID', 'prestaspot' ),
+                                type: 'number',
+                                value: attributes.categoryId,
+                                help: __( '0 shows products regardless of category.', 'prestaspot' ),
+                                onChange: function ( value ) {
+                                    setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
+                                },
+                            } ),
                         el( ToggleControl, {
                             label: __( 'On Sale Only', 'prestaspot' ),
                             checked: attributes.onSale,
@@ -302,5 +354,6 @@
     window.wp.blockEditor,
     window.wp.components,
     window.wp.serverSideRender,
-    window.wp.i18n
+    window.wp.i18n,
+    window.wp.apiFetch
 );

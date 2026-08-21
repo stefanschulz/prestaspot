@@ -1,5 +1,12 @@
 # PrestaSpot - Changelog
 
+## 0.13.0 (2026-08-21) - Category Picker + Name-Based Category Filter
+
+- The block's "Category ID" numeric field is now a real dropdown of the shop's actual category names, fetched live from PrestaShop rather than requiring the editor to know a raw numeric ID. Backed by a new internal REST route (`GET /prestaspot/v1/categories`, gated behind `edit_posts`) that `Presta_Spot_Block` registers and `index.js` calls via `wp.apiFetch()` on mount; falls back to the previous plain numeric field if the fetch fails or returns nothing (shop not configured, API key lacking `categories` access, etc.) so the block never becomes unusable.
+- New `Presta_Spot_Api::get_categories()` (public - shared by the REST route and the shortcode's name lookup below) and `resolve_category_id_by_name()`. Same shape as `get_shop_currency()`/`get_shop_languages()`: `GET /api/categories`, language-scoped for the same untranslated-multilingual-field reason, cached a day, best-effort (falls back to `[]`/`0` rather than erroring).
+- New shortcode-only `category_name` attribute - the name-based equivalent for `category_id`, since the shortcode has no dropdown UI to pick a category from the way the block now does. Case-insensitive exact match; `category_id` wins if both are given; a name that matches nothing falls through to "no category filter" rather than an error.
+- Requires the Webservice API key to additionally have GET access to the `categories` resource - see the updated `README.md` Requirements note.
+
 ## 0.12.0 (2026-08-21) - Sort Option + Multilingual Fetch Fix
 
 - New `sort` setting/attribute/shortcode-parameter: `""` (default, PrestaShop's own unspecified order), `name_asc`/`name_desc`, `price_asc`/`price_desc`, `date_asc`/`date_desc` (by `date_add`). Two-tier like `layout`/`view_mode` (global default + per-block/shortcode override), presented as a plain `<select>`/`SelectControl` rather than a visual picker - these are named, mutually exclusive choices with no useful visual preview, unlike layout/price-position. Maps to the webservice's `sort=field_DIRECTION` param (`Presta_Spot_Api::build_sort_args()`); date sorting additionally needs `&date=1`, which the webservice otherwise rejects `date_add` without.

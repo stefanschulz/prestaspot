@@ -330,4 +330,81 @@ class Presta_Spot_Api
 
         return $currency;
     }
+
+    /**
+     * Public (unlike get_shop_languages()/get_shop_currency()) - used both by
+     * resolve_category_id_by_name() below and directly by the block editor's
+     * category picker via the REST route in Presta_Spot_Block.
+     *
+     * @return array<int, array{id: int, name: string}>
+     */
+    public function get_categories(): array
+    {
+        $settings = $this->settings->get_all();
+        $shop_url = $settings[Presta_Spot_Settings::SHOP_URL];
+        $api_key = $settings[Presta_Spot_Settings::API_KEY];
+
+        if (empty($shop_url) || empty($api_key)) {
+            return array();
+        }
+
+        $cache_key = 'prestaspot_categories_' . md5($shop_url);
+        $cached = get_transient($cache_key);
+        if ($cached !== false) {
+            return $cached;
+        }
+
+        $args = array(
+            'display' => '[id,name]',
+            'output_format' => 'JSON',
+            'filter[active]' => '1',
+        );
+        // Same untranslated-multilingual-field 500 avoided the same way as
+        // get_shop_currency() above - "name" is multilingual here too.
+        $languages = $this->get_shop_languages($shop_url, $api_key);
+        if (!empty($languages)) {
+            $args['language'] = (string)$languages[0]['id'];
+        }
+
+        $url = add_query_arg($args, trailingslashit($shop_url) . 'api/categories');
+
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Basic ' . base64_encode($api_key . ':')),
+            'timeout' => 10,
+        ));
+
+        $categories = array();
+        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $categories = array_map(
+                fn($category) => array(
+                    'id' => absint($category['id'] ?? 0),
+                    'name' => $this->localized_value($category['name'] ?? ''),
+                ),
+                $body['categories'] ?? array()
+            );
+            usort($categories, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+        }
+
+        // Shop categories change rarely, cached like languages/currency.
+        set_transient($cache_key, $categories, DAY_IN_SECONDS);
+
+        return $categories;
+    }
+
+    /**
+     * Case-insensitive exact match on category name; 0 (= no filter) if
+     * nothing matches, including duplicate names under different parent
+     * categories - picks the first match rather than erroring.
+     */
+    public function resolve_category_id_by_name(string $name): int
+    {
+        foreach ($this->get_categories() as $category) {
+            if (strtolower($name) === strtolower($category['name'])) {
+                return $category['id'];
+            }
+        }
+
+        return 0;
+    }
 }
