@@ -6,6 +6,10 @@ Lightweight PrestaShop integration for WordPress: a plugin that displays content
 
 For installation and usage (shortcode, block, settings), see the plugin's own guide: [`prestaspot/README.md`](prestaspot/README.md).
 
+## Documentation
+
+Developer-facing documentation — architecture, coding conventions, local Docker test environment, changelog — lives in [`.doc/`](.doc/README.md). Start there if you're contributing code (human or LLM).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
