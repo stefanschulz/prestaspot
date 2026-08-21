@@ -10,6 +10,10 @@ For installation and usage (shortcode, block, settings), see the plugin's own gu
 
 Developer-facing documentation — architecture, coding conventions, local Docker test environment, changelog — lives in [`.doc/`](.doc/README.md). Start there if you're contributing code (human or LLM).
 
+## Development
+
+This plugin was developed with AI assistance (Claude Code).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
