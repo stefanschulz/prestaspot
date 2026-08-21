@@ -72,11 +72,34 @@ class Presta_Spot_Admin
             'sanitize_callback' => 'absint',
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::CACHE_DURATION],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_show_image', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_IMAGE],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_show_name', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_NAME],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_show_description', array(
+            'type' => 'boolean',
+            'sanitize_callback' => array($this, 'sanitize_boolean'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_DESCRIPTION],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
     {
         return untrailingslashit(esc_url_raw(trim($input)));
+    }
+
+    public function sanitize_boolean(mixed $input): bool
+    {
+        return !empty($input);
     }
 
     public function render_settings_page(): void

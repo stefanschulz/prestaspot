@@ -18,6 +18,9 @@ class Presta_Spot_Settings
     public const PRODUCT_COUNT = 'product_count';
     public const COLUMNS = 'columns';
     public const CACHE_DURATION = 'cache_duration';
+    public const SHOW_IMAGE = 'show_image';
+    public const SHOW_NAME = 'show_name';
+    public const SHOW_DESCRIPTION = 'show_description';
 
     const PRESTASPOT_SETTINGS_DEFAULTS = array(
         self::SHOP_URL => '',
@@ -25,6 +28,9 @@ class Presta_Spot_Settings
         self::PRODUCT_COUNT => 8,
         self::COLUMNS => 4,
         self::CACHE_DURATION => 900,
+        self::SHOW_IMAGE => true,
+        self::SHOW_NAME => true,
+        self::SHOW_DESCRIPTION => true,
     );
 
     public function __construct() {}
@@ -37,6 +43,9 @@ class Presta_Spot_Settings
             self::PRODUCT_COUNT => $this->get_prestaspot_option(self::PRODUCT_COUNT),
             self::COLUMNS => $this->get_prestaspot_option(self::COLUMNS),
             self::CACHE_DURATION => $this->get_prestaspot_option(self::CACHE_DURATION),
+            self::SHOW_IMAGE => $this->get_prestaspot_option(self::SHOW_IMAGE),
+            self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
+            self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -44,6 +53,9 @@ class Presta_Spot_Settings
         $settings[self::PRODUCT_COUNT] = max(1, absint($settings[self::PRODUCT_COUNT]));
         $settings[self::COLUMNS] = max(1, absint($settings[self::COLUMNS]));
         $settings[self::CACHE_DURATION] = max(60, absint($settings[self::CACHE_DURATION]));
+        $settings[self::SHOW_IMAGE] = (bool)$settings[self::SHOW_IMAGE];
+        $settings[self::SHOW_NAME] = (bool)$settings[self::SHOW_NAME];
+        $settings[self::SHOW_DESCRIPTION] = (bool)$settings[self::SHOW_DESCRIPTION];
 
         return $settings;
     }

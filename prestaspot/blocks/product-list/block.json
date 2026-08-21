@@ -7,7 +7,7 @@
     "icon": "store",
     "description": "Display products from a connected PrestaShop store as cards.",
     "keywords": ["prestashop", "products", "shop", "cards"],
-    "version": "0.1.0",
+    "version": "0.2.0",
     "textdomain": "prestaspot",
     "attributes": {
         "productCount": {
@@ -21,6 +21,18 @@
         "columns": {
             "type": "number",
             "default": 4
+        },
+        "showImage": {
+            "type": "boolean",
+            "default": true
+        },
+        "showName": {
+            "type": "boolean",
+            "default": true
+        },
+        "showDescription": {
+            "type": "boolean",
+            "default": true
         }
     },
     "supports": {

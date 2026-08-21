@@ -2,6 +2,9 @@
 /**
  * @var array $products
  * @var int $columns
+ * @var bool $show_image
+ * @var bool $show_name
+ * @var bool $show_description
  */
 
 if (!defined('ABSPATH')) {
@@ -16,18 +19,20 @@ if (!defined('ABSPATH')) {
     <?php else : ?>
         <?php foreach ($products as $product) : ?>
             <div class="prestaspot-card">
-                <?php if (!empty($product['image_url'])) : ?>
+                <?php if ($show_image && !empty($product['image_url'])) : ?>
                     <a class="prestaspot-card-image" href="<?php echo esc_url($product['permalink']); ?>" target="_blank" rel="noopener noreferrer">
                         <img src="<?php echo esc_url($product['image_url']); ?>" alt="<?php echo esc_attr($product['name']); ?>" loading="lazy" />
                     </a>
                 <?php endif; ?>
                 <div class="prestaspot-card-body">
-                    <h3 class="prestaspot-card-title">
-                        <a href="<?php echo esc_url($product['permalink']); ?>" target="_blank" rel="noopener noreferrer">
-                            <?php echo esc_html($product['name']); ?>
-                        </a>
-                    </h3>
-                    <?php if (!empty($product['description'])) : ?>
+                    <?php if ($show_name) : ?>
+                        <h3 class="prestaspot-card-title">
+                            <a href="<?php echo esc_url($product['permalink']); ?>" target="_blank" rel="noopener noreferrer">
+                                <?php echo esc_html($product['name']); ?>
+                            </a>
+                        </h3>
+                    <?php endif; ?>
+                    <?php if ($show_description && !empty($product['description'])) : ?>
                         <p class="prestaspot-card-description"><?php echo esc_html($product['description']); ?></p>
                     <?php endif; ?>
                     <a class="prestaspot-card-link" href="<?php echo esc_url($product['permalink']); ?>" target="_blank" rel="noopener noreferrer">

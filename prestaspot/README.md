@@ -18,15 +18,15 @@ Lightweight PrestaShop integration for WordPress. Displays content from a connec
 
 ### Block
 
-Add the **PrestaShop Product List** block anywhere in the block editor. Product count, columns, and category filter are configurable in the block sidebar.
+Add the **PrestaShop Product List** block anywhere in the block editor. Product count, columns, category filter, and which card elements (image, name, description) to show are configurable in the block sidebar.
 
 ### Shortcode
 
 ```
-[prestaspot product_count="8" columns="4" category_id="0"]
+[prestaspot product_count="8" columns="4" category_id="0" show_image="yes" show_name="yes" show_description="yes"]
 ```
 
-All attributes are optional; omitted ones fall back to the defaults configured on the settings page. `category_id="0"` (the default) shows products regardless of category.
+All attributes are optional; omitted ones fall back to the defaults configured on the settings page. `category_id="0"` (the default) shows products regardless of category. `show_image`/`show_name`/`show_description` accept `yes`/`no` (also `1`/`0`, `true`/`false`).
 
 ## License
 

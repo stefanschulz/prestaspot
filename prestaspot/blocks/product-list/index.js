@@ -7,6 +7,7 @@
     var PanelBody = components.PanelBody;
     var RangeControl = components.RangeControl;
     var TextControl = components.TextControl;
+    var ToggleControl = components.ToggleControl;
 
     registerBlockType( 'prestaspot/product-list', {
         edit: function ( props ) {
@@ -48,6 +49,31 @@
                             help: __( '0 shows products regardless of category.', 'prestaspot' ),
                             onChange: function ( value ) {
                                 setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
+                            },
+                        } )
+                    ),
+                    el(
+                        PanelBody,
+                        { title: __( 'Product Elements', 'prestaspot' ) },
+                        el( ToggleControl, {
+                            label: __( 'Show Image', 'prestaspot' ),
+                            checked: attributes.showImage,
+                            onChange: function ( value ) {
+                                setAttributes( { showImage: value } );
+                            },
+                        } ),
+                        el( ToggleControl, {
+                            label: __( 'Show Name', 'prestaspot' ),
+                            checked: attributes.showName,
+                            onChange: function ( value ) {
+                                setAttributes( { showName: value } );
+                            },
+                        } ),
+                        el( ToggleControl, {
+                            label: __( 'Show Description', 'prestaspot' ),
+                            checked: attributes.showDescription,
+                            onChange: function ( value ) {
+                                setAttributes( { showDescription: value } );
                             },
                         } )
                     )

@@ -116,6 +116,53 @@ if (!defined('ABSPATH')) {
                     </p>
                 </td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Card Elements', 'prestaspot'); ?></th>
+                <td>
+                    <p>
+                        <label for="prestaspot_show_image">
+                            <input type="hidden" name="prestaspot_show_image" value="0" />
+                            <input
+                                type="checkbox"
+                                id="prestaspot_show_image"
+                                name="prestaspot_show_image"
+                                value="1"
+                                <?php checked($settings['show_image']); ?>
+                            />
+                            <?php esc_html_e('Show image', 'prestaspot'); ?>
+                        </label>
+                    </p>
+                    <p>
+                        <label for="prestaspot_show_name">
+                            <input type="hidden" name="prestaspot_show_name" value="0" />
+                            <input
+                                type="checkbox"
+                                id="prestaspot_show_name"
+                                name="prestaspot_show_name"
+                                value="1"
+                                <?php checked($settings['show_name']); ?>
+                            />
+                            <?php esc_html_e('Show name', 'prestaspot'); ?>
+                        </label>
+                    </p>
+                    <p>
+                        <label for="prestaspot_show_description">
+                            <input type="hidden" name="prestaspot_show_description" value="0" />
+                            <input
+                                type="checkbox"
+                                id="prestaspot_show_description"
+                                name="prestaspot_show_description"
+                                value="1"
+                                <?php checked($settings['show_description']); ?>
+                            />
+                            <?php esc_html_e('Show description', 'prestaspot'); ?>
+                        </label>
+                    </p>
+                    <p class="description">
+                        <?php esc_html_e('Default visibility of product card elements. Can be overridden per block or shortcode.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
         </table>
 
         <?php submit_button(__('Save Settings', 'prestaspot')); ?>
@@ -127,5 +174,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" show_image="yes" show_name="yes" show_description="yes"]</code></p>
 </div>
