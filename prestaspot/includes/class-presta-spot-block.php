@@ -45,6 +45,7 @@ class Presta_Spot_Block
             'show_image' => (bool)($attributes['showImage'] ?? true),
             'show_name' => (bool)($attributes['showName'] ?? true),
             'show_description' => (bool)($attributes['showDescription'] ?? true),
+            'layout' => (string)($attributes['layout'] ?? ''),
         ));
     }
 }

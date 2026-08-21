@@ -38,16 +38,15 @@
     object-fit: cover;
 }
 
-.prestaspot-card-body {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 1rem;
-}
-
+/*
+ * Title, description and link are direct flex children of .prestaspot-card
+ * (not nested in a shared "body" wrapper) so the image can be placed before,
+ * between, or after them depending on the configured card layout. Each
+ * handles its own horizontal padding; the image stays edge-to-edge.
+ */
 .prestaspot-card-title {
     margin: 0;
+    padding: 1rem 1rem 0.25rem;
     font-size: 1.05rem;
 }
 
@@ -57,13 +56,14 @@
 }
 
 .prestaspot-card-description {
-    flex: 1;
     margin: 0;
+    padding: 0.5rem 1rem 0.25rem;
     color: #555;
     font-size: 0.9rem;
 }
 
 .prestaspot-card-link {
+    margin: 0.75rem 1rem 1rem;
     margin-top: auto;
     font-weight: 600;
     text-decoration: none;

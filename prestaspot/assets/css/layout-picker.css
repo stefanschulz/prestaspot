@@ -1,0 +1,76 @@
+/*
+ * Visual layout picker: radio buttons styled as clickable cards, each with a
+ * small abstract preview of the element order. Shared between the settings
+ * page (assets/css/class-presta-spot-admin.php enqueues it) and the block
+ * editor (blocks/product-list/block.json "editorStyle") so both look the
+ * same and stay in sync automatically.
+ */
+.prestaspot-layout-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.prestaspot-layout-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: 128px;
+    padding: 0.75rem;
+    border: 2px solid #dcdcde;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.prestaspot-layout-option:hover {
+    border-color: #8c8f94;
+}
+
+.prestaspot-layout-option:has(input:checked) {
+    border-color: #2271b1;
+    background: #f0f6fc;
+}
+
+.prestaspot-layout-option input[type="radio"] {
+    margin: 0;
+}
+
+.prestaspot-layout-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+}
+
+.prestaspot-layout-block {
+    display: block;
+    border-radius: 2px;
+}
+
+.prestaspot-layout-block--image {
+    height: 34px;
+    background: #c3c4c7;
+}
+
+.prestaspot-layout-block--name {
+    height: 8px;
+    width: 70%;
+    background: #50575e;
+}
+
+.prestaspot-layout-block--description {
+    height: 6px;
+    width: 90%;
+    background: #dcdcde;
+}
+
+.prestaspot-layout-label {
+    font-size: 0.8rem;
+    color: #50575e;
+}

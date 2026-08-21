@@ -9,6 +9,45 @@
     var TextControl = components.TextControl;
     var ToggleControl = components.ToggleControl;
 
+    var LAYOUT_OPTIONS = [
+        { value: 'image_name_description', order: [ 'image', 'name', 'description' ], label: __( 'Image, Name, Description', 'prestaspot' ) },
+        { value: 'name_image_description', order: [ 'name', 'image', 'description' ], label: __( 'Name, Image, Description', 'prestaspot' ) },
+        { value: 'name_description_image', order: [ 'name', 'description', 'image' ], label: __( 'Name, Description, Image', 'prestaspot' ) },
+    ];
+
+    function renderLayoutPicker( layout, radioGroupName, onChange ) {
+        return el(
+            'div',
+            { className: 'prestaspot-layout-picker' },
+            LAYOUT_OPTIONS.map( function ( option ) {
+                return el(
+                    'label',
+                    { key: option.value, className: 'prestaspot-layout-option' },
+                    el( 'input', {
+                        type: 'radio',
+                        name: radioGroupName,
+                        value: option.value,
+                        checked: layout === option.value,
+                        onChange: function () {
+                            onChange( option.value );
+                        },
+                    } ),
+                    el(
+                        'span',
+                        { className: 'prestaspot-layout-preview' },
+                        option.order.map( function ( elementName ) {
+                            return el( 'span', {
+                                key: elementName,
+                                className: 'prestaspot-layout-block prestaspot-layout-block--' + elementName,
+                            } );
+                        } )
+                    ),
+                    el( 'span', { className: 'prestaspot-layout-label' }, option.label )
+                );
+            } )
+        );
+    }
+
     registerBlockType( 'prestaspot/product-list', {
         edit: function ( props ) {
             var attributes = props.attributes;
@@ -51,6 +90,14 @@
                                 setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
                             },
                         } )
+                    ),
+                    el(
+                        PanelBody,
+                        { title: __( 'Card Layout', 'prestaspot' ) },
+                        renderLayoutPicker( attributes.layout, 'prestaspot-layout-' + props.clientId, function ( value ) {
+                            setAttributes( { layout: value } );
+                        } ),
+                        el( 'p', { className: 'components-base-control__help' }, __( 'The "View in shop" link always renders last.', 'prestaspot' ) )
                     ),
                     el(
                         PanelBody,

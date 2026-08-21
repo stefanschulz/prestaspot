@@ -21,6 +21,19 @@ class Presta_Spot_Settings
     public const SHOW_IMAGE = 'show_image';
     public const SHOW_NAME = 'show_name';
     public const SHOW_DESCRIPTION = 'show_description';
+    public const LAYOUT = 'layout';
+
+    // Card layouts: which order image/name/description render in. The
+    // "View in shop" link always renders last, regardless of layout.
+    public const LAYOUT_IMAGE_NAME_DESCRIPTION = 'image_name_description';
+    public const LAYOUT_NAME_IMAGE_DESCRIPTION = 'name_image_description';
+    public const LAYOUT_NAME_DESCRIPTION_IMAGE = 'name_description_image';
+
+    const LAYOUT_ELEMENT_ORDER = array(
+        self::LAYOUT_IMAGE_NAME_DESCRIPTION => array('image', 'name', 'description'),
+        self::LAYOUT_NAME_IMAGE_DESCRIPTION => array('name', 'image', 'description'),
+        self::LAYOUT_NAME_DESCRIPTION_IMAGE => array('name', 'description', 'image'),
+    );
 
     const PRESTASPOT_SETTINGS_DEFAULTS = array(
         self::SHOP_URL => '',
@@ -31,6 +44,7 @@ class Presta_Spot_Settings
         self::SHOW_IMAGE => true,
         self::SHOW_NAME => true,
         self::SHOW_DESCRIPTION => true,
+        self::LAYOUT => self::LAYOUT_IMAGE_NAME_DESCRIPTION,
     );
 
     public function __construct() {}
@@ -46,6 +60,7 @@ class Presta_Spot_Settings
             self::SHOW_IMAGE => $this->get_prestaspot_option(self::SHOW_IMAGE),
             self::SHOW_NAME => $this->get_prestaspot_option(self::SHOW_NAME),
             self::SHOW_DESCRIPTION => $this->get_prestaspot_option(self::SHOW_DESCRIPTION),
+            self::LAYOUT => $this->get_prestaspot_option(self::LAYOUT),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -56,6 +71,9 @@ class Presta_Spot_Settings
         $settings[self::SHOW_IMAGE] = (bool)$settings[self::SHOW_IMAGE];
         $settings[self::SHOW_NAME] = (bool)$settings[self::SHOW_NAME];
         $settings[self::SHOW_DESCRIPTION] = (bool)$settings[self::SHOW_DESCRIPTION];
+        $settings[self::LAYOUT] = array_key_exists($settings[self::LAYOUT], self::LAYOUT_ELEMENT_ORDER)
+            ? $settings[self::LAYOUT]
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::LAYOUT];
 
         return $settings;
     }
@@ -64,6 +82,17 @@ class Presta_Spot_Settings
     {
         $all = $this->get_all();
         return $all[$key] ?? null;
+    }
+
+    /**
+     * Resolves a stored/requested layout value to its element render order,
+     * falling back to the default layout for unknown/invalid values.
+     *
+     * @return string[]
+     */
+    public static function get_layout_element_order(string $layout): array
+    {
+        return self::LAYOUT_ELEMENT_ORDER[$layout] ?? self::LAYOUT_ELEMENT_ORDER[self::PRESTASPOT_SETTINGS_DEFAULTS[self::LAYOUT]];
     }
 
     private function get_prestaspot_option(string $key): mixed

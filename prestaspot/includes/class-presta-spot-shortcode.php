@@ -31,6 +31,7 @@ class Presta_Spot_Shortcode
             'product_count' => 0,
             'category_id' => 0,
             'columns' => 0,
+            'layout' => '',
             'show_image' => '',
             'show_name' => '',
             'show_description' => '',
@@ -40,6 +41,7 @@ class Presta_Spot_Shortcode
             'product_count' => (int)$attributes['product_count'],
             'category_id' => (int)$attributes['category_id'],
             'columns' => (int)$attributes['columns'],
+            'layout' => $attributes['layout'],
         );
 
         foreach (array('show_image', 'show_name', 'show_description') as $flag) {

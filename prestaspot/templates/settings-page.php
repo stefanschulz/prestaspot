@@ -117,6 +117,39 @@ if (!defined('ABSPATH')) {
                 </td>
             </tr>
             <tr>
+                <th scope="row"><?php esc_html_e('Card Layout', 'prestaspot'); ?></th>
+                <td>
+                    <?php
+                    $prestaspot_layout_labels = array(
+                        Presta_Spot_Settings::LAYOUT_IMAGE_NAME_DESCRIPTION => __('Image, Name, Description', 'prestaspot'),
+                        Presta_Spot_Settings::LAYOUT_NAME_IMAGE_DESCRIPTION => __('Name, Image, Description', 'prestaspot'),
+                        Presta_Spot_Settings::LAYOUT_NAME_DESCRIPTION_IMAGE => __('Name, Description, Image', 'prestaspot'),
+                    );
+                    ?>
+                    <div class="prestaspot-layout-picker">
+                        <?php foreach (Presta_Spot_Settings::LAYOUT_ELEMENT_ORDER as $prestaspot_layout_value => $prestaspot_element_order) : ?>
+                            <label class="prestaspot-layout-option">
+                                <input
+                                    type="radio"
+                                    name="prestaspot_layout"
+                                    value="<?php echo esc_attr($prestaspot_layout_value); ?>"
+                                    <?php checked($settings['layout'], $prestaspot_layout_value); ?>
+                                />
+                                <span class="prestaspot-layout-preview">
+                                    <?php foreach ($prestaspot_element_order as $prestaspot_element) : ?>
+                                        <span class="prestaspot-layout-block prestaspot-layout-block--<?php echo esc_attr($prestaspot_element); ?>"></span>
+                                    <?php endforeach; ?>
+                                </span>
+                                <span class="prestaspot-layout-label"><?php echo esc_html($prestaspot_layout_labels[$prestaspot_layout_value]); ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                    <p class="description">
+                        <?php esc_html_e('Order the visible card elements render in. The "View in shop" link always renders last.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
                 <th scope="row"><?php esc_html_e('Card Elements', 'prestaspot'); ?></th>
                 <td>
                     <p>
@@ -174,5 +207,5 @@ if (!defined('ABSPATH')) {
     <p>
         <?php esc_html_e('Add the "PrestaShop Product List" block anywhere in the block editor, or use the shortcode:', 'prestaspot'); ?>
     </p>
-    <p><code>[prestaspot product_count="8" columns="4" category_id="0" show_image="yes" show_name="yes" show_description="yes"]</code></p>
+    <p><code>[prestaspot product_count="8" columns="4" category_id="0" layout="image_name_description" show_image="yes" show_name="yes" show_description="yes"]</code></p>
 </div>

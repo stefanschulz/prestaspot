@@ -26,6 +26,19 @@ class Presta_Spot_Admin
     {
         add_action('admin_menu', array($this, 'register_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+    }
+
+    public function enqueue_admin_scripts(string $hook): void
+    {
+        if (str_contains($hook, 'prestaspot-settings')) {
+            wp_enqueue_style(
+                'prestaspot-layout-picker',
+                PRESTASPOT_PLUGIN_URL . 'assets/css/layout-picker.css',
+                array(),
+                prestaspot_get_asset_version('assets/css/layout-picker.css')
+            );
+        }
     }
 
     public function register_admin_menu(): void
@@ -90,6 +103,12 @@ class Presta_Spot_Admin
             'sanitize_callback' => array($this, 'sanitize_boolean'),
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SHOW_DESCRIPTION],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_layout', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_layout'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LAYOUT],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
@@ -100,6 +119,13 @@ class Presta_Spot_Admin
     public function sanitize_boolean(mixed $input): bool
     {
         return !empty($input);
+    }
+
+    public function sanitize_layout(string $input): string
+    {
+        return array_key_exists($input, Presta_Spot_Settings::LAYOUT_ELEMENT_ORDER)
+            ? $input
+            : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LAYOUT];
     }
 
     public function render_settings_page(): void
