@@ -163,6 +163,34 @@
         } );
     }
 
+    // Keeps an unrecognized languageId visibly selected via a synthetic option.
+    function renderLanguageControl( languages, languageId, onChange ) {
+        const knownIds = languages.map( function ( language ) {
+            return language.id;
+        } );
+        const options = [ { value: '0', label: __( 'Automatic (page language)', 'prestaspot' ) } ].concat(
+            languages.map( function ( language ) {
+                return { value: String( language.id ), label: language.name };
+            } )
+        );
+        if ( languageId > 0 && knownIds.indexOf( languageId ) === -1 ) {
+            options.push( {
+                value: String( languageId ),
+                label: sprintf( __( 'Language #%s (not in list)', 'prestaspot' ), languageId ),
+            } );
+        }
+
+        return el( SelectControl, {
+            label: __( 'Language', 'prestaspot' ),
+            value: String( languageId ),
+            options: options,
+            help: __( 'Overrides automatic Polylang/WPML page-language detection.', 'prestaspot' ),
+            onChange: function ( value ) {
+                onChange( parseInt( value, 10 ) || 0 );
+            },
+        } );
+    }
+
     registerBlockType( 'prestaspot/product-list', {
         edit: function ( props ) {
             const attributes = props.attributes;
@@ -170,12 +198,18 @@
             const blockProps = useBlockProps();
             // null = loading, [] = fetch failed/empty - both fall back to the numeric field below.
             const [ categories, setCategories ] = useState( null );
+            const [ languages, setLanguages ] = useState( null );
 
             useEffect( function () {
                 apiFetch( { path: '/prestaspot/v1/categories' } )
                     .then( setCategories )
                     .catch( function () {
                         setCategories( [] );
+                    } );
+                apiFetch( { path: '/prestaspot/v1/languages' } )
+                    .then( setLanguages )
+                    .catch( function () {
+                        setLanguages( [] );
                     } );
             }, [] );
 
@@ -226,6 +260,19 @@
                                 help: __( '0 shows products regardless of category.', 'prestaspot' ),
                                 onChange: function ( value ) {
                                     setAttributes( { categoryId: parseInt( value, 10 ) || 0 } );
+                                },
+                            } ),
+                        languages && languages.length > 0
+                            ? renderLanguageControl( languages, attributes.languageId, function ( value ) {
+                                setAttributes( { languageId: value } );
+                            } )
+                            : el( TextControl, {
+                                label: __( 'Language ID', 'prestaspot' ),
+                                type: 'number',
+                                value: attributes.languageId,
+                                help: __( '0 detects the page language automatically (Polylang/WPML).', 'prestaspot' ),
+                                onChange: function ( value ) {
+                                    setAttributes( { languageId: parseInt( value, 10 ) || 0 } );
                                 },
                             } ),
                         el( ToggleControl, {

@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.15.1
+**Version**: 0.16.0
 
 ---
 
@@ -198,6 +198,12 @@ Note: PrestaShop's own structural categories ("Root", "Home") come back in this 
 
 `public function resolve_category_id_by_name(string $name): int` - case-insensitive exact match against `get_categories()`, first match wins if a shop somehow has duplicate category names under different parents, `0` (= no category filter) if nothing matches. Used by `Presta_Spot_Renderer::render()` to support the shortcode's `category_name` attribute (see below) - the block doesn't need this at all, since its dropdown already resolves straight to a numeric `categoryId` client-side.
 
+### Manual Language Override (`get_languages()`, `resolve_language_id_by_code()`)
+
+Same shape and role as `get_categories()`/`resolve_category_id_by_name()` above, for letting a block/shortcode instance pick a specific shop language instead of relying purely on automatic Polylang/WPML detection (see the next section) - useful on a site running neither plugin, or for a page that deliberately wants a different shop language than its own. `public function get_languages(): array` (`[{id: int, name: string, iso_code: string}, ...]`) is a thin public wrapper around the already-`private`/cached `get_shop_languages()` (adds `name` to its `display=[...]`, previously just `[id,iso_code]`) - backs both `Presta_Spot_Block::get_languages_route()` (the block editor's language picker) and `resolve_language_id_by_code()`. Unlike category/currency names, a language's own `name` field isn't itself a multilingual/translatable value (each language resource entry just has one plain string), so there's no untranslated-field-crashes-the-webservice concern here.
+
+`public function resolve_language_id_by_code(string $code): int` - case-insensitive match against `iso_code` (PrestaShop's own, not always the ISO code you'd expect - e.g. English can be `gb`), `0` (= fall through to automatic detection) if nothing matches. Used by `Presta_Spot_Renderer::render()` for the shortcode's `language` attribute, same `language_id`-wins-if-both-given precedence as `category_id`/`category_name`. `Presta_Spot_Api::get_products()` takes the resolved id as `$language_override_id`; when `> 0` it's used as-is, skipping `resolve_language_id()`/the automatic-detection fallback chain below entirely.
+
 ### Multilingual plugin language sync (`resolve_language_id()`)
 
 Product data is requested in the PrestaShop language matching the page's current language - as reported by whichever supported multilingual plugin is active (Polylang, then WPML) - so multilingual sites don't always see the shop's default-language text. Fully additive/optional - degrades gracefully to the pre-0.7.0 behavior (the array-normalization case above) when no supported plugin is active or no shop language matches:
@@ -259,7 +265,7 @@ The single place shortcode and block output are produced, so they can never drif
 public function render(array $args): string
 ```
 
-`$args` keys are all optional: `product_count`, `category_id`, `category_name`, `on_sale`, `sort`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `show_stock_status`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
+`$args` keys are all optional: `product_count`, `category_id`, `category_name`, `language_id`, `language`, `on_sale`, `sort`, `columns`, `show_image`, `show_name`, `show_description`, `show_price`, `show_stock_status`, `price_position`, `layout`, `view_mode`, `link_text`, `link_style`, `button_color`, `sale_badge_color`. For each, if the caller didn't specify it, the setting's default is used instead.
 
 **Two different "not specified" conventions are used deliberately**, and any new option must pick the right one:
 
@@ -278,6 +284,8 @@ if (0 === $category_id && !empty($args['category_name'])) {
 ```
 
 An explicit numeric `category_id` always wins if both are somehow given; a `category_name` that doesn't resolve to anything (typo, wrong case doesn't matter since matching is case-insensitive, but a genuinely nonexistent name) leaves `$category_id` at `0`, i.e. silently falls through to "no category filter" rather than erroring - consistent with every other best-effort lookup in this codebase (currency, language matching).
+
+`language_id`/`language` mirror this exact same pattern one setting later - `absint($args['language_id'] ?? 0)`, then `resolve_language_id_by_code()` as the fallback for a non-empty `language` - except `0` here means "fall through to automatic Polylang/WPML detection" (see below) rather than "no filter"; there's no way to request "PrestaShop's own unspecified language order" the way `category_id`'s `0` means "no category filter", since a language always has to resolve to *something* before the request can be made.
 
 `link_text` and `sort` both have a further wrinkle in common: `''` is a legitimate *resolved* value even after falling through instance→settings (meaning neither was customized), not just an intermediate sentinel. For `link_text` it means "use the built-in translated label" (a PHP class constant can't hold a `__()`-translated string, so the template applies it, not the renderer - see below). For `sort` it means "PrestaShop's own, unspecified order" - a real, useful choice in its own right (`SORT_DEFAULT`), not a placeholder for "not decided yet".
 
@@ -336,7 +344,7 @@ When `$link_style === 'button'`, the closure adds the `prestaspot-card-link--but
 
 `show_*` values are parsed by `parse_bool()`: anything except `no`/`false`/`0` (case-insensitive) is `true` — so `yes`, `1`, `true`, or simply omitting a recognizable "falsy" word all mean "shown". `on_sale` defaults to `'no'` (not the empty-string sentinel) and is always parsed via the same `parse_bool()` - unlike the `show_*` flags it has no settings-level default to fall through to, so there's no "unset" state to distinguish.
 
-`category_name` (default `''`) exists **only** on the shortcode, not the block attribute set - the block resolves a category straight to a numeric id via its own picker UI (see below), so it has no use for a name-based lookup at render time. Passed straight through to the renderer unchanged; resolution (and the `category_id`-wins precedence) happens there, not here.
+`category_name`/`language` (both default `''`) exist **only** on the shortcode, not the block attribute set - the block resolves straight to a numeric id via its own picker UI (see below), so it has no use for a name/code-based lookup at render time. Both are passed straight through to the renderer unchanged; resolution (and the `category_id`/`language_id`-wins precedence) happens there, not here.
 
 ---
 
@@ -374,6 +382,10 @@ useEffect( function () {
 `renderCategoryControl(categories, categoryId, onChange)` then builds a `SelectControl` with an `"All Categories"` (`value: '0'`) option plus one per fetched category (`value` = category id as a string, `label` = its name) - swapped in for the plain numeric "Category ID" `TextControl` only once `categories && categories.length > 0`; while loading (`null`) or after a failed/empty fetch (`[]`), the numeric field is what renders instead, so the block never becomes unusable over a PrestaShop-side hiccup. One extra wrinkle: if the block's stored `categoryId` isn't among the fetched categories (an inactive/deleted category, or the block was set up before the shop had this category), a synthetic `"Category #{id} (not in list)"` option is appended so that stored value stays visibly selected instead of the control silently looking like it reset to "All Categories" - it hasn't actually changed, `categoryId` is untouched until the user makes a different choice.
 
 The shortcode has no equivalent client-side control to feed, which is exactly why `category_name` (resolved server-side, see the Shortcode section) exists as its separate, parallel way to select a category by name.
+
+### Language picker (REST route + `renderLanguageControl()`)
+
+Same shape as the category picker immediately above, one `/prestaspot/v1/languages` route (`get_languages_route()` wrapping `$this->api->get_languages()`) and one `useEffect`/`useState` fetch feeding `renderLanguageControl(languages, languageId, onChange)` - the only real difference is the sentinel option's label: `"Automatic (page language)"` (`value: '0'`) instead of `"All Categories"`, since `languageId: 0` means "let Polylang/WPML (or the first shop language) decide" rather than "no filter". Same graceful-degradation and "not in fetched list" synthetic-option handling as categories; same reason the shortcode has its own separate `language`/`language_id` server-side resolution path (see the Shortcode section) instead of sharing this client-side control.
 
 Editor preview uses `<ServerSideRender block="prestaspot/product-list" attributes={...} />`, which calls the same `render_callback` (via the REST API) that produces the frontend output - so the editor and frontend can never visually diverge.
 

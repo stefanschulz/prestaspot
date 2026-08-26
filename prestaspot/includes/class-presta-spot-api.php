@@ -22,7 +22,7 @@ class Presta_Spot_Api
         $this->settings = $settings;
     }
 
-    public function get_products(int $limit, int $category_id = 0, bool $on_sale = false, string $sort = ''): array
+    public function get_products(int $limit, int $category_id = 0, bool $on_sale = false, string $sort = '', int $language_override_id = 0): array
     {
         $settings = $this->settings->get_all();
         $shop_url = $settings[Presta_Spot_Settings::SHOP_URL];
@@ -33,12 +33,16 @@ class Presta_Spot_Api
         }
 
         $limit = max(1, $limit);
-        $language_id = $this->resolve_language_id($shop_url, $api_key);
-        if (0 === $language_id) {
-            // Unscoped multilingual fields can 500 the webservice - same fix as get_shop_currency() below.
-            $shop_languages = $this->get_shop_languages($shop_url, $api_key);
-            if (!empty($shop_languages)) {
-                $language_id = $shop_languages[0]['id'];
+        if ($language_override_id > 0) {
+            $language_id = $language_override_id;
+        } else {
+            $language_id = $this->resolve_language_id($shop_url, $api_key);
+            if (0 === $language_id) {
+                // Unscoped multilingual fields can 500 the webservice - same fix as get_shop_currency() below.
+                $shop_languages = $this->get_shop_languages($shop_url, $api_key);
+                if (!empty($shop_languages)) {
+                    $language_id = $shop_languages[0]['id'];
+                }
             }
         }
         $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0') . '|' . $sort);
@@ -273,7 +277,7 @@ class Presta_Spot_Api
     }
 
     /**
-     * @return array<int, array{id: int, iso_code: string}>
+     * @return array<int, array{id: int, name: string, iso_code: string}>
      */
     private function get_shop_languages(string $shop_url, string $api_key): array
     {
@@ -284,7 +288,7 @@ class Presta_Spot_Api
         }
 
         $url = add_query_arg(array(
-            'display' => '[id,iso_code]',
+            'display' => '[id,name,iso_code]',
             'output_format' => 'JSON',
         ), trailingslashit($shop_url) . 'api/languages');
 
@@ -298,9 +302,12 @@ class Presta_Spot_Api
         }
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
+        // Unlike product/category names, a language's own "name" isn't itself
+        // translated per-language - it's already a single plain string.
         $languages = array_map(
             fn($language) => array(
                 'id' => absint($language['id'] ?? 0),
+                'name' => (string)($language['name'] ?? ''),
                 'iso_code' => strtolower((string)($language['iso_code'] ?? '')),
             ),
             $body['languages'] ?? array()
@@ -310,6 +317,42 @@ class Presta_Spot_Api
         set_transient($cache_key, $languages, DAY_IN_SECONDS);
 
         return $languages;
+    }
+
+    /**
+     * Public (unlike get_shop_languages()) - backs the block editor's language
+     * picker (see index.js) and the shortcode's language-code resolution below.
+     *
+     * @return array<int, array{id: int, name: string, iso_code: string}>
+     */
+    public function get_languages(): array
+    {
+        $settings = $this->settings->get_all();
+        $shop_url = $settings[Presta_Spot_Settings::SHOP_URL];
+        $api_key = $settings[Presta_Spot_Settings::API_KEY];
+
+        if (empty($shop_url) || empty($api_key)) {
+            return array();
+        }
+
+        return $this->get_shop_languages($shop_url, $api_key);
+    }
+
+    /**
+     * Case-insensitive match against PrestaShop's own iso_code (e.g. "de", or
+     * "gb" for English - not always the ISO code you'd expect); 0 (= automatic
+     * detection) if nothing matches.
+     */
+    public function resolve_language_id_by_code(string $code): int
+    {
+        $code = strtolower($code);
+        foreach ($this->get_languages() as $language) {
+            if ($code === $language['iso_code']) {
+                return $language['id'];
+            }
+        }
+
+        return 0;
     }
 
     /**

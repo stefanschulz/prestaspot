@@ -40,13 +40,18 @@ class Presta_Spot_Block
     }
 
     /**
-     * Backs the block editor's category picker (see index.js).
+     * Backs the block editor's category and language pickers (see index.js).
      */
     public function register_rest_routes(): void
     {
         register_rest_route('prestaspot/v1', '/categories', array(
             'methods' => 'GET',
             'callback' => array($this, 'get_categories_route'),
+            'permission_callback' => fn() => current_user_can('edit_posts'),
+        ));
+        register_rest_route('prestaspot/v1', '/languages', array(
+            'methods' => 'GET',
+            'callback' => array($this, 'get_languages_route'),
             'permission_callback' => fn() => current_user_can('edit_posts'),
         ));
     }
@@ -56,11 +61,17 @@ class Presta_Spot_Block
         return new WP_REST_Response($this->api->get_categories());
     }
 
+    public function get_languages_route(): WP_REST_Response
+    {
+        return new WP_REST_Response($this->api->get_languages());
+    }
+
     public function render(array $attributes): string
     {
         return $this->renderer->render(array(
             'product_count' => (int)($attributes['productCount'] ?? 0),
             'category_id' => (int)($attributes['categoryId'] ?? 0),
+            'language_id' => (int)($attributes['languageId'] ?? 0),
             'on_sale' => (bool)($attributes['onSale'] ?? false),
             'columns' => (int)($attributes['columns'] ?? 0),
             'show_image' => (bool)($attributes['showImage'] ?? true),

@@ -24,7 +24,7 @@ class Presta_Spot_Renderer
     }
 
     /**
-     * @param array{product_count?: ?int, category_id?: ?int, category_name?: ?string, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, show_stock_status?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
+     * @param array{product_count?: ?int, category_id?: ?int, category_name?: ?string, language_id?: ?int, language?: ?string, columns?: ?int, show_image?: bool, show_name?: bool, show_description?: bool, show_price?: bool, show_stock_status?: bool, price_position?: ?string, on_sale?: bool, sort?: ?string, layout?: ?string, view_mode?: ?string, link_text?: ?string, link_style?: ?string, button_color?: ?string, sale_badge_color?: ?string} $args
      */
     public function render(array $args): string
     {
@@ -35,6 +35,11 @@ class Presta_Spot_Renderer
         // category_id wins if both are given.
         if (0 === $category_id && !empty($args['category_name'])) {
             $category_id = $this->api->resolve_category_id_by_name((string)$args['category_name']);
+        }
+        $language_id = absint($args['language_id'] ?? 0);
+        // language_id wins if both are given; 0 (unresolved) falls through to automatic detection.
+        if (0 === $language_id && !empty($args['language'])) {
+            $language_id = $this->api->resolve_language_id_by_code((string)$args['language']);
         }
         $on_sale = !empty($args['on_sale']);
         $sort = !empty($args['sort']) && in_array($args['sort'], Presta_Spot_Settings::SORTS, true)
@@ -72,7 +77,7 @@ class Presta_Spot_Renderer
             ? (sanitize_hex_color($args['sale_badge_color']) ?: $settings[Presta_Spot_Settings::SALE_BADGE_COLOR])
             : $settings[Presta_Spot_Settings::SALE_BADGE_COLOR];
 
-        $products = $this->api->get_products($product_count, $category_id, $on_sale, $sort);
+        $products = $this->api->get_products($product_count, $category_id, $on_sale, $sort, $language_id);
 
         ob_start();
         include PRESTASPOT_PLUGIN_DIR . 'templates/product-cards.php';
