@@ -28,3 +28,9 @@
     height: 16px;
     font-size: 16px;
 }
+
+/* settings-color-picker.js replaces these with a ColorPalette once it loads;
+   kept as a functional fallback (still submits, still reset-button-driven) if JS fails. */
+.prestaspot-color-input--enhanced {
+    display: none;
+}

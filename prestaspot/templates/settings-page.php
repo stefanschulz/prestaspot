@@ -412,7 +412,7 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
                 </th>
                 <td>
                     <input
-                        type="color"
+                        type="text"
                         id="prestaspot_button_color"
                         name="prestaspot_button_color"
                         value="<?php echo esc_attr($settings['button_color']); ?>"
@@ -429,7 +429,7 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
                 </th>
                 <td>
                     <input
-                        type="color"
+                        type="text"
                         id="prestaspot_sale_badge_color"
                         name="prestaspot_sale_badge_color"
                         value="<?php echo esc_attr($settings['sale_badge_color']); ?>"

@@ -51,7 +51,36 @@ class Presta_Spot_Admin
                 prestaspot_get_asset_version('assets/js/settings-page.js'),
                 true
             );
+            wp_enqueue_style('wp-components');
+            wp_enqueue_script(
+                'prestaspot-settings-color-picker',
+                PRESTASPOT_PLUGIN_URL . 'assets/js/settings-color-picker.js',
+                array('wp-element', 'wp-components'),
+                prestaspot_get_asset_version('assets/js/settings-color-picker.js'),
+                true
+            );
+            wp_localize_script('prestaspot-settings-color-picker', 'prestaspotColorPicker', array(
+                'colors' => $this->get_theme_color_palette(),
+                'fields' => array('prestaspot_button_color', 'prestaspot_sale_badge_color'),
+            ));
         }
+    }
+
+    /**
+     * Same palette the block editor's color pickers show, prefers theme over WP
+     * defaults. Filtered to entries sanitize_hex_color() accepts - some themes
+     * register a palette "color" as a CSS function (e.g. color-mix()) rather than
+     * a literal color, which we can't store or use for contrast text (see CHANGES.md).
+     */
+    private function get_theme_color_palette(): array
+    {
+        $palette = wp_get_global_settings(array('color', 'palette'));
+        $colors = !empty($palette['theme']) ? $palette['theme'] : ($palette['default'] ?? array());
+        $colors = !empty($palette['custom']) ? array_merge($colors, $palette['custom']) : $colors;
+
+        return array_values(array_filter($colors, function ($entry) {
+            return !empty($entry['color']) && sanitize_hex_color($entry['color']);
+        }));
     }
 
     public function register_admin_menu(): void

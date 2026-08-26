@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.14.1
+**Version**: 0.15.0
 
 ---
 
@@ -30,9 +30,10 @@ prestaspot/
 │   ├── css/
 │   │   ├── prestaspot.css                   # Card grid + card styles (frontend, and block "style")
 │   │   ├── layout-picker.css                # Visual layout picker (shared by settings page and block editor)
-│   │   └── settings-page.css                # Per-field reset button styling (settings page only)
+│   │   └── settings-page.css                # Per-field reset button styling + color picker hiding (settings page only)
 │   └── js/
-│       └── settings-page.js                 # Per-field reset button behavior (settings page only)
+│       ├── settings-page.js                 # Per-field reset button behavior (settings page only)
+│       └── settings-color-picker.js         # Mounts wp.components.ColorPalette over the color fields (settings page only)
 ├── LICENSE                                  # Apache License 2.0
 └── build.xml / build-package.php            # Phing target that zips prestaspot/ into prestaspot-<version>.zip (repo root, not inside the plugin folder)
 ```
@@ -413,6 +414,14 @@ All the actual behavior is in `assets/js/settings-page.js` (enqueued only on the
 - **Radio group**: several inputs share one `name`; the checked one's `.value` is the current value, and reset checks whichever radio's `.value` equals `data-default`.
 
 No new build tooling, no dependency on the block editor's JS - this is a separate, much smaller vanilla script scoped to the admin settings page only, following the same "hand-written against the DOM, no framework" approach as `blocks/product-list/index.js` (though for a plain PHP admin page rather than a React-based block, there's no shared code between the two - they solve different problems).
+
+### Theme Color Palette (`assets/js/settings-color-picker.js`)
+
+`button_color` and `sale_badge_color` used a plain `<input type="color">` - the browser's own picker, with no idea what colors the site's actual design uses, unlike the block sidebar's `PanelColorSettings`, which shows the active theme's `theme.json` palette as swatches. Found via a user report that the settings page and the block behaved inconsistently here.
+
+Fixed by mounting `wp.components.ColorPalette` (the same component `PanelColorSettings` uses internally) over each color field, unlike the reset buttons this needed real block-editor packages (`wp-element`, `wp-components` script + style), since there's no plain-DOM equivalent of a palette-aware color picker. `Presta_Spot_Admin::get_theme_color_palette()` resolves the palette PHP-side via `wp_get_global_settings(['color', 'palette'])` and passes it to the script through `wp_localize_script()` - preferring the theme's own palette over WordPress's built-in default one (empirically what the block editor itself shows for a theme with a `theme.json` palette), with any user-customized palette appended on top.
+
+The underlying `<input type="text">` (no longer `type="color"` - a bare hex string now, validated server-side by the existing `sanitize_hex_color()` callbacks) stays exactly where it was in the DOM and keeps its `name`, so `options.php` submission and `settings-page.js`'s reset-button logic (`getFields()`/`currentValue()`/`applyDefault()`) don't need to know a picker exists - `settings-color-picker.js` only adds a `.prestaspot-color-input--enhanced` class (CSS `display: none`) once it has successfully mounted its own picker next to it, so a JS failure leaves the native color input visible and fully functional instead of blank. The mounted `ColorPalette` and the input stay in sync in both directions purely through the `change` event: picking a swatch sets `input.value` and dispatches `change`; the reset button doesn't touch the picker directly, it only resets `input.value` - so `applyDefault()` was changed to dispatch `change` on every reset (previously it didn't fire any event) purely so the color picker's own `change` listener notices.
 
 ---
 

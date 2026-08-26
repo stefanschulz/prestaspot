@@ -24,15 +24,19 @@
         const first = fields[ 0 ];
         if ( 'checkbox' === first.type ) {
             first.checked = '1' === defaultValue;
-            return;
-        }
-        if ( 'radio' === first.type ) {
+        } else if ( 'radio' === first.type ) {
             fields.forEach( function ( field ) {
                 field.checked = field.value === defaultValue;
             } );
-            return;
+        } else {
+            first.value = defaultValue;
         }
-        first.value = defaultValue;
+
+        // Lets other scripts (e.g. settings-color-picker.js) that watch a field
+        // via 'change' notice a reset even though it wasn't a real user edit.
+        fields.forEach( function ( field ) {
+            field.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+        } );
     }
 
     function initResetButton( button ) {
