@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.15.0
+**Version**: 0.15.1
 
 ---
 
@@ -420,6 +420,10 @@ No new build tooling, no dependency on the block editor's JS - this is a separat
 `button_color` and `sale_badge_color` used a plain `<input type="color">` - the browser's own picker, with no idea what colors the site's actual design uses, unlike the block sidebar's `PanelColorSettings`, which shows the active theme's `theme.json` palette as swatches. Found via a user report that the settings page and the block behaved inconsistently here.
 
 Fixed by mounting `wp.components.ColorPalette` (the same component `PanelColorSettings` uses internally) over each color field, unlike the reset buttons this needed real block-editor packages (`wp-element`, `wp-components` script + style), since there's no plain-DOM equivalent of a palette-aware color picker. `Presta_Spot_Admin::get_theme_color_palette()` resolves the palette PHP-side via `wp_get_global_settings(['color', 'palette'])` and passes it to the script through `wp_localize_script()` - preferring the theme's own palette over WordPress's built-in default one (empirically what the block editor itself shows for a theme with a `theme.json` palette), with any user-customized palette appended on top.
+
+**Not every registered palette color is a literal color, confirmed against two real themes.** `button_color`/`sale_badge_color` are stored and validated as plain hex (`sanitize_hex_color()`), since `get_contrasting_text_color()` needs a real RGB value to pick readable button text. Twenty Twenty-Five's "Accent 6" is `color-mix(in srgb, currentColor 20%, transparent)` - a CSS function with nothing to extract, dropped outright. Blocksy's entire palette is `var(--theme-palette-color-1, #2872fa)`-style - a CSS custom property, but with a hex *fallback* baked in that tracks the theme's actual configured color; `resolve_hex_color()` extracts and uses that instead of dropping it, which is what made Blocksy's swatches show up as empty/unusable before this was added. Anything that's neither a literal hex nor a `var(..., #hex)` is dropped rather than shown as a swatch that would silently fail to save.
+
+**`ColorPalette`'s current-color trigger button has no built-in max-width** - it's designed to live in a ~260px block editor sidebar panel and just stretches to fill its container, which on the settings page's wide table cell rendered an ~833px-wide, 64px-tall bar (measured via `getBoundingClientRect()`, not caught by earlier testing since that only checked DOM/ARIA state, never actual rendered layout). `.prestaspot-color-palette { max-width: 260px }` in `settings-page.css` fixes this.
 
 The underlying `<input type="text">` (no longer `type="color"` - a bare hex string now, validated server-side by the existing `sanitize_hex_color()` callbacks) stays exactly where it was in the DOM and keeps its `name`, so `options.php` submission and `settings-page.js`'s reset-button logic (`getFields()`/`currentValue()`/`applyDefault()`) don't need to know a picker exists - `settings-color-picker.js` only adds a `.prestaspot-color-input--enhanced` class (CSS `display: none`) once it has successfully mounted its own picker next to it, so a JS failure leaves the native color input visible and fully functional instead of blank. The mounted `ColorPalette` and the input stay in sync in both directions purely through the `change` event: picking a swatch sets `input.value` and dispatches `change`; the reset button doesn't touch the picker directly, it only resets `input.value` - so `applyDefault()` was changed to dispatch `change` on every reset (previously it didn't fire any event) purely so the color picker's own `change` listener notices.
 

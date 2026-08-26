@@ -34,3 +34,10 @@
 .prestaspot-color-input--enhanced {
     display: none;
 }
+
+/* ColorPalette's "current color" trigger button has no built-in max-width - it's
+   designed for a ~260px block editor sidebar panel and stretches to fill whatever
+   it's given, which on a wide settings-table cell made it enormous. */
+.prestaspot-color-palette {
+    max-width: 260px;
+}

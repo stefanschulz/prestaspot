@@ -68,9 +68,13 @@ class Presta_Spot_Admin
 
     /**
      * Same palette the block editor's color pickers show, prefers theme over WP
-     * defaults. Filtered to entries sanitize_hex_color() accepts - some themes
-     * register a palette "color" as a CSS function (e.g. color-mix()) rather than
-     * a literal color, which we can't store or use for contrast text (see CHANGES.md).
+     * defaults. Resolved to entries sanitize_hex_color() accepts - some themes
+     * register a palette "color" as a CSS function rather than a literal color,
+     * which we can't store or use for contrast text (see CHANGES.md). Blocksy's
+     * is `var(--theme-palette-color-1, #2872fa)`; its fallback hex is extracted
+     * and used since it tracks the theme's actual configured color. Twenty
+     * Twenty-Five's `color-mix(in srgb, currentColor 20%, transparent)` has no
+     * such fallback and is simply dropped - there's nothing usable to extract.
      */
     private function get_theme_color_palette(): array
     {
@@ -78,9 +82,29 @@ class Presta_Spot_Admin
         $colors = !empty($palette['theme']) ? $palette['theme'] : ($palette['default'] ?? array());
         $colors = !empty($palette['custom']) ? array_merge($colors, $palette['custom']) : $colors;
 
-        return array_values(array_filter($colors, function ($entry) {
-            return !empty($entry['color']) && sanitize_hex_color($entry['color']);
-        }));
+        $resolved = array();
+        foreach ($colors as $entry) {
+            $hex = $this->resolve_hex_color($entry['color'] ?? '');
+            if ($hex) {
+                $entry['color'] = $hex;
+                $resolved[] = $entry;
+            }
+        }
+
+        return $resolved;
+    }
+
+    private function resolve_hex_color(string $color): string
+    {
+        if (sanitize_hex_color($color)) {
+            return $color;
+        }
+
+        if (preg_match('/^var\(\s*--[\w-]+\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/', $color, $matches)) {
+            return sanitize_hex_color($matches[1]) ?: '';
+        }
+
+        return '';
     }
 
     public function register_admin_menu(): void

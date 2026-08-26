@@ -1,5 +1,11 @@
 # PrestaSpot - Changelog
 
+## 0.15.1 (2026-08-26) - Color Picker Fixes: CSS-Variable Palettes + Oversized Swatch
+
+- **Found via a real customer report that a theme swatch still had no effect after 0.15.0**: Blocksy registers its palette colors as `var(--theme-palette-color-1, #2872fa)` - a CSS custom property, not a literal color - so `get_theme_color_palette()`'s `sanitize_hex_color()` filter dropped every single one, leaving an empty palette (the picker fell back to just its bare custom-color control, full width, no swatches). Reproduced locally by installing Blocksy in the dev environment (Stackable, also mentioned in the report, turned out to have no effect on this - confirmed by installing it too).
+- `Presta_Spot_Admin::resolve_hex_color()` now extracts the fallback hex from a `var(--x, #hex)` value and uses that, instead of dropping the entry outright - this tracks the theme's actual configured color, not a hardcoded guess. A color with no such fallback (like 0.15.0's `color-mix(...)` case) still has nothing usable to extract and is still dropped.
+- **Also found (same report, after the palette started showing): the current-color swatch button rendered enormous** - up to 833px wide/64px tall, confirmed via `getBoundingClientRect()`. `ColorPalette`'s "current color" trigger has no built-in max-width; it's sized for a ~260px block editor sidebar panel and simply stretches to fill whatever container it's given, which on a wide settings-table `<td>` made it huge. `.prestaspot-color-palette { max-width: 260px }` in `settings-page.css` constrains it back to sidebar-panel proportions.
+
 ## 0.15.0 (2026-08-26) - Theme Color Palette on the Settings Page
 
 - The Shop Link Button Color and Sale Badge Color fields on the settings page now use the same `ColorPalette` component the block editor's sidebar uses, showing the active theme's actual color swatches (from `theme.json`) instead of a plain browser `<input type="color">` that had no idea what colors the site's design even uses. New `assets/js/settings-color-picker.js`, mounted only on the PrestaSpot settings screen via `wp-element`/`wp-components`; the underlying `<input type="text">` stays in the DOM (visually hidden once JS mounts the picker) so form submission, the existing per-field reset buttons, and a no-JS fallback all keep working unchanged.
