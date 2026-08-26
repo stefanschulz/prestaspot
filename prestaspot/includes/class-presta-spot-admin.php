@@ -174,7 +174,9 @@ class Presta_Spot_Admin
 
     public function sanitize_shop_url(string $input): string
     {
-        return untrailingslashit(esc_url_raw(trim($input)));
+        $url = untrailingslashit(esc_url_raw(trim($input)));
+
+        return preg_replace('#/api$#i', '', $url);
     }
 
     public function sanitize_boolean(mixed $input): bool

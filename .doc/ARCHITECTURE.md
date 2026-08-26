@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.14.0
+**Version**: 0.14.1
 
 ---
 
@@ -88,7 +88,7 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 
 | Constant | Option key | Default | Type |
 |---|---|---|---|
-| `SHOP_URL` | `shop_url` | `''` | string, `esc_url_raw()` + `untrailingslashit()` |
+| `SHOP_URL` | `shop_url` | `''` | string, `esc_url_raw()` + `untrailingslashit()`, strips a trailing `/api` |
 | `API_KEY` | `api_key` | `''` | string |
 | `PRODUCT_COUNT` | `product_count` | `8` | int, min 1 |
 | `COLUMNS` | `columns` | `4` | int, min 1 |

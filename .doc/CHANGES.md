@@ -1,5 +1,9 @@
 # PrestaSpot - Changelog
 
+## 0.14.1 (2026-08-26) - Strip Accidental /api Suffix from Shop URL
+
+- `sanitize_shop_url()` now strips a trailing `/api` (case-insensitive) from the Shop URL setting before saving. Found via a real user report: the field expects the shop's root URL, but `/api` is what PrestaShop itself calls the webservice endpoint everywhere in its own docs, making it a natural thing to paste in by mistake. Since every request builder in `Presta_Spot_Api` already appends `api/...` itself (`trailingslashit($shop_url) . 'api/products'`, etc.), a saved value ending in `/api` silently produced a `/api/api/...` URL that PrestaShop's webservice rejects with a 400 - the plugin then just showed its normal "no products" fallback, with no indication of what was actually wrong.
+
 ## 0.14.0 (2026-08-21) - Stock Status Indicator
 
 - New `show_stock_status` setting/attribute/shortcode-parameter (default on) shows an "In Stock"/"Out of Stock" label right after the price. Only actually renders on shops that have PrestaShop's own "Enable stock management" setting on - a shop that doesn't track stock, or hasn't populated it for a given product, never gets a potentially-false label rather than showing one anyway.
