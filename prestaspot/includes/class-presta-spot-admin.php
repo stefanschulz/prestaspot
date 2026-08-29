@@ -27,6 +27,7 @@ class Presta_Spot_Admin
         add_action('admin_menu', array($this, 'register_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+        add_action('admin_notices', array($this, 'show_api_error_notice'));
     }
 
     public function enqueue_admin_scripts(string $hook): void
@@ -273,6 +274,19 @@ class Presta_Spot_Admin
     public function sanitize_sale_badge_color(string $input): string
     {
         return sanitize_hex_color($input) ?: Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SALE_BADGE_COLOR];
+    }
+
+    public function show_api_error_notice(): void
+    {
+        // Only admins should see API error notices.
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        $notice = get_transient('prestaspot_api_error');
+        if ($notice) {
+            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($notice) . '</p></div>';
+            delete_transient('prestaspot_api_error');
+        }
     }
 
     public function render_settings_page(): void
