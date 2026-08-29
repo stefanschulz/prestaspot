@@ -8,6 +8,8 @@ For installation and usage (shortcode, block, settings), see the plugin's own gu
 
 ## Documentation
 
+* Admin notices are displayed in the WordPress dashboard when the PrestaShop Webservice API encounters errors (e.g., invalid URL, wrong API key, network problems).
+
 Developer-facing documentation — architecture, coding conventions, local Docker test environment, changelog — lives in [`.doc/`](.doc/README.md). Start there if you're contributing code (human or LLM).
 
 ## Development

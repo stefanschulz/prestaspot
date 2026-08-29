@@ -92,6 +92,7 @@ class Presta_Spot_Api
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
             $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
             set_transient('prestaspot_api_error', sprintf(__('PrestaSpot: unable to fetch products – %s', 'prestaspot'), $error_msg), 5 * MINUTE_IN_SECONDS);
+            error_log('[PrestaSpot] API error fetching products: ' . $error_msg);
             return array();
         }
 
@@ -178,6 +179,7 @@ class Presta_Spot_Api
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
             $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
             set_transient('prestaspot_api_error', sprintf(__('PrestaSpot: unable to fetch stock quantities – %s', 'prestaspot'), $error_msg), 5 * MINUTE_IN_SECONDS);
+            error_log('[PrestaSpot] API error fetching stock quantities: ' . $error_msg);
             return array();
         }
 
@@ -304,6 +306,7 @@ class Presta_Spot_Api
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
             $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
             set_transient('prestaspot_api_error', sprintf(__('PrestaSpot: unable to fetch languages – %s', 'prestaspot'), $error_msg), 5 * MINUTE_IN_SECONDS);
+            error_log('[PrestaSpot] API error fetching languages: ' . $error_msg);
             return array();
         }
 
