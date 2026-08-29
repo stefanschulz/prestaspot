@@ -1,11 +1,14 @@
 # PrestaSpot - Changelog
 
+## 0.16.1 (2026-08-29) - Admin Notice for API Errors
+
+- Added transient-based admin notices to inform administrators of PrestaShop Webservice API failures (e.g., invalid URL, missing/incorrect API key, network issues). The notice appears as a dismissible error banner in the WordPress dashboard and is cleared after dismissal or on next successful request.
+
 ## 0.16.0 (2026-08-26) - Manual Language Override
 
 - New `language_id`/`language` shortcode attributes and a "Language" block dropdown let you pick a specific shop language for a block/shortcode instance instead of relying purely on automatic Polylang/WPML page-language detection - useful on a site running neither plugin, or for a page that deliberately wants a different shop language than its own. Same precedence pattern as `category_id`/`category_name`: `language_id` (numeric) wins if both are given, `language` (PrestaShop's `iso_code`, case-insensitive) is the friendly alternative, and one that doesn't resolve falls through to automatic detection rather than erroring.
 - `Presta_Spot_Api::get_products()` gained a `$language_override_id` parameter; when set (`> 0`) it's used directly, skipping Polylang/WPML detection and the first-shop-language fallback entirely. `get_languages()`/`resolve_language_id_by_code()` mirror `get_categories()`/`resolve_category_id_by_name()` - same public/cached shape, same REST route pattern (`/prestaspot/v1/languages`) backing the block's picker.
 - No new API permission needed - this reuses the `languages` access already required for automatic detection.
-
 ## 0.15.1 (2026-08-26) - Color Picker Fixes: CSS-Variable Palettes + Oversized Swatch
 
 - **Found via a real customer report that a theme swatch still had no effect after 0.15.0**: Blocksy registers its palette colors as `var(--theme-palette-color-1, #2872fa)` - a CSS custom property, not a literal color - so `get_theme_color_palette()`'s `sanitize_hex_color()` filter dropped every single one, leaving an empty palette (the picker fell back to just its bare custom-color control, full width, no swatches). Reproduced locally by installing Blocksy in the dev environment (Stackable, also mentioned in the report, turned out to have no effect on this - confirmed by installing it too).
