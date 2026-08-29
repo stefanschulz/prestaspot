@@ -44,6 +44,10 @@ Without Polylang or WPML - or on a page where you deliberately want a different 
 
 Text you type directly into a block or shortcode (e.g. a custom shop link label) is already per-language with either plugin, since each translated page is its own independent post - no plugin-specific setup needed there either. Only a *global default* set on the PrestaSpot settings page (rather than overridden per block/shortcode) is shared across all languages.
 
+## Error handling
+
+If any request to the PrestaShop Webservice fails (e.g., invalid URL, missing/incorrect API key, network issues), PrestaSpot stores a short‑lived transient and shows a dismissible admin notice in the WordPress dashboard (visible only to administrators). The notice disappears after dismissal or on the next successful page load.
+
 ## License
 
 Apache License 2.0. See [LICENSE](../LICENSE).
