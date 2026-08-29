@@ -12,7 +12,7 @@ PrestaSpot needs both a WordPress **and** a PrestaShop instance to test against,
 Z:\dev\wordpress\prestaspot-docker\docker-compose.yml
 ```
 
-Four services: `wordpress` (port **8082**), `wp-db`, `prestashop` (port **8091**), `ps-db`. The plugin folder is bind-mounted straight into the WordPress container, so edits under `prestaspot/` are picked up immediately, no rebuild/restart needed:
+Four services: `wordpress` (port **8092**), `wp-db`, `prestashop` (port **8093**), `ps-db`. The plugin folder is bind-mounted straight into the WordPress container, so edits under `prestaspot/` are picked up immediately, no rebuild/restart needed:
 
 ```yaml
 volumes:
@@ -34,14 +34,26 @@ This is the one non-obvious piece of the setup, worth understanding before touch
 - **the WordPress container**, doing server-side `wp_remote_get()` calls to the PrestaShop Webservice API (needs a Docker-internal-reachable address)
 - **the visitor's browser**, loading `<img>` tags and "View in shop" links straight out of rendered HTML (needs a host-reachable address)
 
-`host.docker.internal` resolves to the same address from both contexts on Docker Desktop for Windows (it adds the entry to the Windows hosts file too, not just inside containers) - so the compose file sets `PS_DOMAIN: host.docker.internal:8091`, and the PrestaSpot settings page's "Shop URL" is set to `http://host.docker.internal:8091` accordingly. Plain `localhost:8091` does **not** work for the WordPress-container side (its own `localhost` is itself, not the host machine) - don't "simplify" this back to `localhost`.
+`host.docker.internal` resolves to the same address from both contexts on Docker Desktop for Windows (it adds the entry to the Windows hosts file too, not just inside containers) - so the compose file sets `PS_DOMAIN: host.docker.internal:8093`, and the PrestaSpot settings page's "Shop URL" is set to `http://host.docker.internal:8093` accordingly. Plain `localhost:8093` does **not** work for the WordPress-container side (its own `localhost` is itself, not the host machine) - don't "simplify" this back to `localhost`.
 
-If PrestaShop was ever installed with a different `PS_DOMAIN` (e.g. after a `docker compose down -v` without updating the compose file first), fix it directly in the DB rather than reinstalling:
+If PrestaShop was ever installed with a different `PS_DOMAIN` (e.g. after a `docker compose down -v` without updating the compose file first, or after changing the port mapping - see below), fix it directly in the DB rather than reinstalling:
 
 ```bash
 docker exec prestaspot-docker-ps-db-1 mariadb -uprestashop -pprestashop prestashop -e \
-  "UPDATE ps_shop_url SET domain='host.docker.internal:8091', domain_ssl='host.docker.internal:8091' WHERE id_shop=1;"
+  "UPDATE ps_shop_url SET domain='host.docker.internal:8093', domain_ssl='host.docker.internal:8093' WHERE id_shop=1;
+   UPDATE ps_configuration SET value='localhost:8093' WHERE name IN ('PS_SHOP_DOMAIN','PS_SHOP_DOMAIN_SSL');"
 ```
+
+### Changing the host ports
+
+Both host ports (`8092`/`8093`) were picked to avoid clashing with sibling dev stacks (`dinkychat-docker` on `8080`, `voteflowmanager-docker` on `8081`) - check `docker ps -a` (or `docker inspect <container> --format '{{json .HostConfig.PortBindings}}'` for containers that aren't currently running) across *all* Docker projects on the machine before picking new ones, not just this repo; a silent port clash with an unrelated container can leave one of the two just not actually bound (`docker ps` still shows it as "Up") without Docker raising any error. If the ports ever need to change again, four places must be updated together, not just `docker-compose.yml`:
+
+1. `docker-compose.yml` - both `ports:` mappings and the `PS_DOMAIN` env var.
+2. WordPress's own `siteurl`/`home` options (`wp_options`) - not derived automatically, baked in at install time.
+3. PrestaShop's `ps_shop_url.domain`/`domain_ssl` and `ps_configuration`'s `PS_SHOP_DOMAIN`/`PS_SHOP_DOMAIN_SSL` (see above) - all four, not just `ps_shop_url`, are consulted for redirect/canonical-URL decisions.
+4. PrestaSpot's own `prestaspot_shop_url` option, and its cached `_transient_prestaspot_*` rows (safe to just delete, they'll repopulate on the next request).
+
+Then recreate the two containers (`docker compose up -d --force-recreate wordpress prestashop`) - a plain `restart` reuses the already-established (now-stale) port binding rather than rebinding to the new one.
 
 ### Credentials (this dev stack only - not real secrets)
 
@@ -55,7 +67,7 @@ PrestaShop's webservice is off by default and there's no env var to auto-enable 
 1. Back office → **Advanced Parameters → Webservice** → set "Enable PrestaShop's webservice" to **Yes** → Save.
 2. **Add new webservice key** → click **Generate** for the key → give it a description → set "Enable webservice key" to **Yes**.
 3. In the permissions table, tick the **View (GET)** column for the `products`, `images`, `currencies`, `categories`, `configurations`, `stock_availables`, and `languages` rows → Save. `languages` isn't just for testing Polylang/WPML sync (see below) - `get_products()` also needs it to avoid a 500 on sort-by-name against a shop with more than one configured language (see ARCHITECTURE.md's "Unscoped-request fallback"). Without `categories`, the block's category picker silently falls back to the old plain numeric field - fine for spot-checking other features, but worth remembering if that fallback shows up unexpectedly during a test. Without `configurations`/`stock_availables`, stock status just never shows, same graceful-degradation story.
-4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8082/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
+4. Paste the generated key into PrestaSpot's settings page (`http://localhost:8092/wp-admin/admin.php?page=prestaspot-settings`) alongside the shop URL.
 
 The demo shop comes pre-seeded with ~19 fixture products across a few categories (`Men`, `Women`, `Art`, `Stationery`, `Home Accessories`, plus the structural `Root`/`Home` categories every PrestaShop install has), which is enough to exercise `product_count`, `category_id`/`category_name`, and pagination-adjacent behavior without adding real data. Not every category has products assigned, though (`Accessories`/`Clothes` are empty on a fresh install) - worth checking `filter[id_category_default]` product counts directly against the webservice before assuming a "no products" result is a bug rather than just an empty category.
 
