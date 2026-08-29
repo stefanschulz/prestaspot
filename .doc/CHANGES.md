@@ -1,6 +1,6 @@
 # PrestaSpot - Changelog
 
-## 0.16.1 (2026-08-29) - Admin Notice for API Errors
+## 0.16.2 (2026-08-29) - Admin Notice for API Errors
 
 - Added transient-based admin notices to inform administrators of PrestaShop Webservice API failures (e.g., invalid URL, missing/incorrect API key, network issues). The notice appears as a dismissible error banner in the WordPress dashboard and is cleared after dismissal or on next successful request.
 
