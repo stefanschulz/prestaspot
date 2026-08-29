@@ -398,7 +398,11 @@ class Presta_Spot_Api
             'timeout' => 10,
         ));
 
-        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
+            set_transient('prestaspot_api_error', sprintf(__('PrestaSpot: unable to fetch currency – %s', 'prestaspot'), $error_msg), 5 * MINUTE_IN_SECONDS);
+            error_log('[PrestaSpot] API error fetching currency: ' . $error_msg);
+        } else {
             $body = json_decode(wp_remote_retrieve_body($response), true);
             $first = $body['currencies'][0] ?? null;
             if ($first) {
@@ -495,7 +499,11 @@ class Presta_Spot_Api
         ));
 
         $categories = array();
-        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            $error_msg = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
+            set_transient('prestaspot_api_error', sprintf(__('PrestaSpot: unable to fetch categories – %s', 'prestaspot'), $error_msg), 5 * MINUTE_IN_SECONDS);
+            error_log('[PrestaSpot] API error fetching categories: ' . $error_msg);
+        } else {
             $body = json_decode(wp_remote_retrieve_body($response), true);
             $categories = array_map(
                 fn($category) => array(
