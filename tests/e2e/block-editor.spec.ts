@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from './helpers/login';
+import { deleteWpPage } from './helpers/page-fixture';
 
 /**
  * Drives the block editor via wp.data/wp.blocks directly (page.evaluate),
@@ -27,7 +28,7 @@ test.describe('Gutenberg block', () => {
                 categoryId: 4, // "Men" - the single-product fixture category
             });
             wp.data.dispatch('core/block-editor').resetBlocks([block]);
-            const saved = await wp.data.dispatch('core/editor').savePost();
+            await wp.data.dispatch('core/editor').savePost();
             return wp.data.select('core/editor').getCurrentPostId();
         });
 
@@ -35,15 +36,7 @@ test.describe('Gutenberg block', () => {
     });
 
     test.afterEach(async ({ page }) => {
-        if (!postId) return;
-        // wp.apiFetch is only loaded on wp-admin pages, not the plain
-        // frontend the "renders the configured product" test ends on.
-        await page.goto('/wp-admin/');
-        await page.waitForFunction(() => !!(window as any).wp?.apiFetch);
-        await page.evaluate(async (id) => {
-            const wp = (window as any).wp;
-            await wp.apiFetch({ path: `/wp/v2/pages/${id}?force=true`, method: 'DELETE' });
-        }, postId);
+        if (postId) await deleteWpPage(page, postId);
     });
 
     test('category and language pickers populate from the shop, not the numeric fallback', async ({ page }) => {

@@ -106,8 +106,7 @@ class Presta_Spot_Api
         return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency, $quantities), $raw_products);
     }
 
-    // public static: pure, no $this - lets Unit tests cover the sort/date
-    // mapping directly instead of only indirectly via fetch_products().
+    // public static for direct Unit-test coverage (see tests/Unit/ and .doc/TESTING.md).
     public static function build_sort_args(string $sort): array
     {
         $fields = array(
@@ -194,7 +193,6 @@ class Presta_Spot_Api
         return $quantities;
     }
 
-    // public static: pure, no $this - same reasoning as build_sort_args() above.
     public static function format_price(float $amount, array $currency): string
     {
         $formatted = number_format($amount, $currency['precision'], '.', '');
@@ -205,7 +203,6 @@ class Presta_Spot_Api
      * PrestaShop returns multilingual fields as a plain string (scoped
      * request) or an array of {id, value} pairs (unscoped) - normalize both.
      */
-    // public static: pure, no $this - same reasoning as build_sort_args() above.
     public static function localized_value(mixed $value): string
     {
         if (is_array($value)) {

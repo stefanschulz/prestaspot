@@ -1,5 +1,14 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { loginAsAdmin } from './helpers/login';
+
+/**
+ * The "Custom" trigger button sits alongside the real swatches - its own
+ * label text is a *sibling* span, not inside the button, so filtering by
+ * visible text doesn't exclude it. Its distinguishing DOM class does.
+ */
+function firstThemeSwatch(palette: Locator): Locator {
+    return palette.locator('button:not(.components-color-palette__custom-color-button)').first();
+}
 
 /**
  * The theme-color-palette picker (see .doc/ARCHITECTURE.md's "Theme Color
@@ -33,11 +42,7 @@ test.describe('Settings page - button color picker', () => {
         // ARCHITECTURE.md) before interacting with it.
         await expect(input).toHaveClass(/prestaspot-color-input--enhanced/);
 
-        // The "Custom" trigger button sits alongside the real swatches -
-        // its own label text is a *sibling* span, not inside the button, so
-        // filtering by visible text doesn't exclude it. Its distinguishing
-        // DOM class does.
-        const swatch = palette.locator('button:not(.components-color-palette__custom-color-button)').first();
+        const swatch = firstThemeSwatch(palette);
         await swatch.click();
         const pickedValue = await input.inputValue();
         expect(pickedValue).toMatch(/^#[0-9a-fA-F]{6}$/);
@@ -53,11 +58,7 @@ test.describe('Settings page - button color picker', () => {
         const resetButton = page.locator('.prestaspot-field-reset[data-target="prestaspot_button_color"]');
 
         const palette = page.locator('.prestaspot-color-palette').first();
-        // The "Custom" trigger button sits alongside the real swatches -
-        // its own label text is a *sibling* span, not inside the button, so
-        // filtering by visible text doesn't exclude it. Its distinguishing
-        // DOM class does.
-        const swatch = palette.locator('button:not(.components-color-palette__custom-color-button)').first();
+        const swatch = firstThemeSwatch(palette);
         await swatch.click();
         await expect(resetButton).toBeVisible();
 

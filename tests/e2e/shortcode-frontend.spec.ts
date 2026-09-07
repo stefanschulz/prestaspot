@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from './helpers/login';
+import { deleteWpPage } from './helpers/page-fixture';
 
 /**
  * Creates its own throwaway page (via the REST API, logged in as admin) and
@@ -31,15 +32,7 @@ test.describe('Shortcode frontend rendering', () => {
     });
 
     test.afterEach(async ({ page }) => {
-        if (!postId) return;
-        // wp.apiFetch is only loaded on wp-admin pages, not the plain
-        // frontend page the test itself navigates to.
-        await page.goto('/wp-admin/');
-        await page.waitForFunction(() => !!(window as any).wp?.apiFetch);
-        await page.evaluate(async (id) => {
-            const wp = (window as any).wp;
-            await wp.apiFetch({ path: `/wp/v2/pages/${id}?force=true`, method: 'DELETE' });
-        }, postId);
+        if (postId) await deleteWpPage(page, postId);
     });
 
     test('language override renders the German product translation', async ({ page }) => {

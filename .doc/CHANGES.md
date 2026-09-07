@@ -1,5 +1,10 @@
 # PrestaSpot - Changelog
 
+## 0.16.3 (2026-09-07) - Automated Test Suite (dev tooling)
+
+- Added an automated Unit/Integration/E2E test suite (`composer.json`, `package.json`, `tests/`) modeled on the DinkyChat sibling project's setup - PHPUnit for Unit (no WordPress) and Integration (real disposable WordPress + the real dev-stack PrestaShop instance, not mocked HTTP), Playwright for E2E against the live dev stack. Dev tooling only, not shipped in the plugin package - see `.doc/TESTING.md` for the full reasoning and `.doc/DEVELOPER_GUIDE.md`'s "Running the Tests" section for how to run it.
+- `Presta_Spot_Api::build_sort_args()`, `format_price()`, and `localized_value()` promoted from `private` to `public static` so Unit tests can cover them directly - all three are pure (no `$this`, no WordPress function calls) and were previously only exercised indirectly through `fetch_products()`. No behavior change; internal call sites updated to `self::`.
+
 ## 0.16.2 (2026-08-29) - Admin Notice for API Errors
 
 - Added transient-based admin notices to inform administrators of PrestaShop Webservice API failures (e.g., invalid URL, missing/incorrect API key, network issues). The notice appears as a dismissible error banner in the WordPress dashboard and is cleared after dismissal or on next successful request.
