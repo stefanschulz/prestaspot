@@ -19,21 +19,20 @@ if (empty($matches[1])) {
 }
 $version = $matches[1];
 
-echo "Building prestaspot-$version.zip...\n";
-
-// Delete ALL existing zip files before creating new one
-$all_zips = glob(__DIR__ . '/prestaspot-*.zip');
-if ($all_zips) {
-    echo "Cleaning up old packages...\n";
-    foreach ($all_zips as $zip_file) {
-        unlink($zip_file);
-        echo "  Deleted: " . basename($zip_file) . "\n";
-    }
+// Releases accumulate here across versions, same as the DinkyChat sibling
+// project - each version's archive is a permanent record of what got
+// shipped, so nothing here gets deleted.
+$releases_dir = __DIR__ . '/.releases';
+if (!is_dir($releases_dir)) {
+    mkdir($releases_dir, 0755, true);
 }
+
+$zip_file = $releases_dir . '/prestaspot-' . $version . '.zip';
+
+echo "Building .releases/prestaspot-$version.zip...\n";
 
 // Create zip file using PHP's ZipArchive
 $zip = new ZipArchive();
-$zip_file = __DIR__ . '/prestaspot-' . $version . '.zip';
 
 if ($zip->open($zip_file, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
     die("ERROR: Could not create zip file\n");
@@ -59,4 +58,4 @@ if (is_dir($source_dir)) {
 
 $zip->close();
 
-echo "Package created: prestaspot-$version.zip\n";
+echo "✅ Package created: .releases/prestaspot-$version.zip\n";

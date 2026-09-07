@@ -48,7 +48,7 @@ wp-config.php
 #/wp-content/themes
 
 /.idea/
-/prestaspot-*.zip
+/.releases/
 /prestaspot/languages/prestaspot.mo
 
 /.design/
