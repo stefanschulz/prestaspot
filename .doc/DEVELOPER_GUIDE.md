@@ -153,6 +153,49 @@ Deactivate Polylang first (it takes precedence when both are active - useful for
 
 ---
 
+## Running the Tests
+
+See `.doc/TESTING.md` for the reasoning behind the three-tier shape of this suite (modeled on DinkyChat's own). This section is just the commands.
+
+### One-time setup
+
+```bash
+composer install          # Unit + Integration (PHPUnit, phpcs/wpcs)
+npm install                # E2E (Playwright)
+npx playwright install chromium
+```
+
+The Integration suite additionally needs a real WordPress core PHPUnit test library and a disposable test database, installed *inside* the `wordpress` container (the repo is mounted read-only there at `/repo` - see `docker-compose.yml`):
+
+```bash
+MSYS_NO_PATHCONV=1 docker exec prestaspot-docker-wordpress-1 bash /repo/bin/install-wp-tests.sh wordpress_test wordpress wordpress wp-db
+```
+
+The `wordpress` DB user only has privileges on the `wordpress` database by default (the `wp-db` service's `MYSQL_DATABASE` env var) - the first run will fail with `Access denied ... to database 'wordpress_test'` unless a test database is created and granted first:
+
+```bash
+docker exec prestaspot-docker-wp-db-1 mysql -uroot -proot -e "
+  CREATE DATABASE IF NOT EXISTS wordpress_test;
+  GRANT ALL PRIVILEGES ON wordpress_test.* TO 'wordpress'@'%';
+  FLUSH PRIVILEGES;"
+```
+
+`install-wp-tests.sh` downloads WP core + its PHPUnit test library into `/wp-tests-lib` inside the container's writable layer (not a volume) - safe to re-run, but it disappears if the container is ever recreated (a port change, an image update, etc.) and needs re-running then. Not worth a volume for what's meant to be a "run once, re-run if needed" setup step.
+
+### Running each tier
+
+```bash
+composer test               # Unit - fast, no Docker needed
+bash .docker/test.sh         # Integration - needs the full dev stack up (wordpress + prestashop)
+npx playwright test          # E2E - needs the full dev stack up, reachable at http://prestaspot.localhost
+```
+
+Integration and E2E are **not hermetic** - both assume the `prestaspot-docker` stack is running with the fixture data this file documents elsewhere (the Hummingbird t-shirt in category "Men", product 3's zeroed stock, product 1's German translation, etc.). If a test fails, check whether the fixture drifted (e.g. someone hand-edited a product's price in the back office) before assuming the plugin code regressed.
+
+`npx playwright test` defaults to `workers: 1` (set in `playwright.config.ts`) - the dev stack is one shared, not especially beefy container, and running spec files in parallel against it caused real intermittent login timeouts during development. Don't remove that setting to "speed things up" without expecting flakiness back.
+
+---
+
 ## Coding Conventions
 
 - **No JS build tooling.** Editor JS (`blocks/product-list/index.js`) is written directly against `window.wp.*` globals with `element.createElement` - no JSX, no webpack, no npm. Keep it that way; introducing `@wordpress/scripts` would be a deliberate, discussed decision, not an incremental addition.

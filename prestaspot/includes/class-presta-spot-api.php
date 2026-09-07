@@ -80,7 +80,7 @@ class Presta_Spot_Api
             // as plain strings in that language instead of an {id,value}[] array.
             $args['language'] = (string)$language_id;
         }
-        $args = array_merge($args, $this->build_sort_args($sort));
+        $args = array_merge($args, self::build_sort_args($sort));
 
         $url = add_query_arg($args, trailingslashit($shop_url) . 'api/products');
 
@@ -106,7 +106,9 @@ class Presta_Spot_Api
         return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency, $quantities), $raw_products);
     }
 
-    private function build_sort_args(string $sort): array
+    // public static: pure, no $this - lets Unit tests cover the sort/date
+    // mapping directly instead of only indirectly via fetch_products().
+    public static function build_sort_args(string $sort): array
     {
         $fields = array(
             Presta_Spot_Settings::SORT_NAME_ASC => array('name', 'ASC'),
@@ -136,11 +138,11 @@ class Presta_Spot_Api
 
         return array(
             'id' => $id,
-            'name' => wp_strip_all_tags($this->localized_value($product['name'] ?? '')),
-            'description' => wp_strip_all_tags($this->localized_value($product['description_short'] ?? '')),
+            'name' => wp_strip_all_tags(self::localized_value($product['name'] ?? '')),
+            'description' => wp_strip_all_tags(self::localized_value($product['description_short'] ?? '')),
             'image_url' => $this->build_image_url($shop_url, $api_key, $id, $product['id_default_image'] ?? ''),
             'permalink' => trailingslashit($shop_url) . 'index.php?controller=product&id_product=' . $id,
-            'price' => isset($product['price']) ? $this->format_price((float)$product['price'], $currency) : '',
+            'price' => isset($product['price']) ? self::format_price((float)$product['price'], $currency) : '',
             'on_sale' => !empty($product['on_sale']),
             // '' when the shop doesn't track stock, or this product's quantity couldn't be fetched.
             'stock_status' => isset($quantities[$id]) ? ($quantities[$id] > 0 ? 'in_stock' : 'out_of_stock') : '',
@@ -192,7 +194,8 @@ class Presta_Spot_Api
         return $quantities;
     }
 
-    private function format_price(float $amount, array $currency): string
+    // public static: pure, no $this - same reasoning as build_sort_args() above.
+    public static function format_price(float $amount, array $currency): string
     {
         $formatted = number_format($amount, $currency['precision'], '.', '');
         return '' !== $currency['symbol'] ? trim($formatted . ' ' . $currency['symbol']) : $formatted;
@@ -202,7 +205,8 @@ class Presta_Spot_Api
      * PrestaShop returns multilingual fields as a plain string (scoped
      * request) or an array of {id, value} pairs (unscoped) - normalize both.
      */
-    private function localized_value(mixed $value): string
+    // public static: pure, no $this - same reasoning as build_sort_args() above.
+    public static function localized_value(mixed $value): string
     {
         if (is_array($value)) {
             $first = reset($value);
@@ -407,7 +411,7 @@ class Presta_Spot_Api
             $first = $body['currencies'][0] ?? null;
             if ($first) {
                 $currency = array(
-                    'symbol' => $this->localized_value($first['symbol'] ?? ''),
+                    'symbol' => self::localized_value($first['symbol'] ?? ''),
                     'precision' => absint($first['precision'] ?? 2),
                 );
             }
@@ -508,7 +512,7 @@ class Presta_Spot_Api
             $categories = array_map(
                 fn($category) => array(
                     'id' => absint($category['id'] ?? 0),
-                    'name' => $this->localized_value($category['name'] ?? ''),
+                    'name' => self::localized_value($category['name'] ?? ''),
                 ),
                 $body['categories'] ?? array()
             );

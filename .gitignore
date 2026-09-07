@@ -50,3 +50,13 @@ wp-config.php
 /.idea/
 /prestaspot-*.zip
 /prestaspot/languages/prestaspot.mo
+
+/.design/
+
+# Test tooling (composer.json/phpunit.xml.dist/tests/ are versioned; their
+# dependencies and run artifacts are not)
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/playwright-report/
+/test-results/

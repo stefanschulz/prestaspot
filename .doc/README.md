@@ -6,6 +6,7 @@ Developer-facing documentation for the PrestaSpot plugin. For end-user/setup ins
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | File structure, class responsibilities, settings reference, the two-tier config pattern, PrestaShop Webservice integration details |
 | [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) | Local Docker test environment, coding conventions, how to add a new display option end-to-end, pre-commit checklist |
+| [TESTING.md](TESTING.md) | Automated test suite (Unit/Integration/E2E) - what exists and why it's shaped this way; see DEVELOPER_GUIDE.md to actually run it |
 | [CHANGES.md](CHANGES.md) | Version history |
 
 Start with **ARCHITECTURE.md** to understand what exists, then **DEVELOPER_GUIDE.md** for how to work on it.

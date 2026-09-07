@@ -1,0 +1,11 @@
+{
+  "name": "prestaspot-e2e",
+  "private": true,
+  "description": "Playwright E2E suite for the PrestaSpot WordPress plugin. Not part of the shipped plugin package.",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
