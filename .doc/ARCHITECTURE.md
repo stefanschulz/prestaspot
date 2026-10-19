@@ -107,6 +107,8 @@ Pure data access, no hooks, no WordPress admin code. All options are stored as s
 | `BUTTON_COLOR` | `button_color` | `#2271b1` | hex color, `sanitize_hex_color()`; only used when `LINK_STYLE` is `button` |
 | `SALE_BADGE_COLOR` | `sale_badge_color` | `#e63946` | hex color, `sanitize_hex_color()`; background of the sale ribbon/badge, see below |
 | `SORT` | `sort` | `''` | string enum: `''` (PrestaShop's own, unspecified order) or `name_asc`/`name_desc`/`price_asc`/`price_desc`/`date_asc`/`date_desc`, see below |
+| `IMAGE_TYPE` | `image_type` | `medium_default` | string enum: `small_default`/`home_default`/`medium_default`/`large_default` or `custom`; the product image size to request from the shop |
+| `IMAGE_TYPE_CUSTOM` | `image_type_custom` | `''` | string, `^[A-Za-z0-9_-]+$` or `''`; the image type name used when `IMAGE_TYPE` is `custom` (ends up in a URL path, hence the strict pattern). The dropdown is a fixed list because the webservice key can't list the shop's real types without extra `image_types` permission. `Presta_Spot_Settings::get_image_type()` resolves both to the effective type name |
 
 `get_all(): array` fetches and sanitizes every option in one call; `get(string $key)` returns a single value via `get_all()`. There is no per-key `get_option()` fast path - simplicity over micro-optimization, since this runs at most once per render.
 

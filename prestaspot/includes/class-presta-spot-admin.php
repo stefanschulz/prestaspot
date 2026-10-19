@@ -224,6 +224,24 @@ class Presta_Spot_Admin
             'sanitize_callback' => array($this, 'sanitize_sale_badge_color'),
             'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SALE_BADGE_COLOR],
         ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_sort', array(
+            'type' => 'string',
+            'sanitize_callback' => array($this, 'sanitize_sort'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SORT],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_image_type', array(
+            'type' => 'string',
+            'sanitize_callback' => array('Presta_Spot_Settings', 'sanitize_image_type_choice'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::IMAGE_TYPE],
+        ));
+
+        register_setting('prestaspot_settings_group', 'prestaspot_image_type_custom', array(
+            'type' => 'string',
+            'sanitize_callback' => array('Presta_Spot_Settings', 'sanitize_image_type_name'),
+            'default' => Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::IMAGE_TYPE_CUSTOM],
+        ));
     }
 
     public function sanitize_shop_url(string $input): string
@@ -264,6 +282,13 @@ class Presta_Spot_Admin
         return in_array($input, Presta_Spot_Settings::LINK_STYLES, true)
             ? $input
             : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::LINK_STYLE];
+    }
+
+    public function sanitize_sort(string $input): string
+    {
+        return in_array($input, Presta_Spot_Settings::SORTS, true)
+            ? $input
+            : Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::SORT];
     }
 
     public function sanitize_button_color(string $input): string

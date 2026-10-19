@@ -164,6 +164,46 @@ $prestaspot_reset_button = function (string $target_name, string $default_value)
             </tr>
             <tr>
                 <th scope="row">
+                    <label for="prestaspot_image_type"><?php esc_html_e('Image Size', 'prestaspot'); ?></label>
+                    <?php echo $prestaspot_reset_button('prestaspot_image_type', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::IMAGE_TYPE]); ?>
+                </th>
+                <td>
+                    <?php
+                    $prestaspot_image_type_options = array(
+                        'small_default' => __('Small (small_default, 98 px)', 'prestaspot'),
+                        'home_default' => __('Medium-small (home_default, 250 px)', 'prestaspot'),
+                        'medium_default' => __('Medium (medium_default, 452 px)', 'prestaspot'),
+                        'large_default' => __('Large (large_default, 800 px)', 'prestaspot'),
+                        Presta_Spot_Settings::IMAGE_TYPE_CHOICE_CUSTOM => __('Custom image type', 'prestaspot'),
+                    );
+                    ?>
+                    <select id="prestaspot_image_type" name="prestaspot_image_type">
+                        <?php foreach ($prestaspot_image_type_options as $prestaspot_image_type_value => $prestaspot_image_type_label) : ?>
+                            <option value="<?php echo esc_attr($prestaspot_image_type_value); ?>" <?php selected($settings['image_type'], $prestaspot_image_type_value); ?>>
+                                <?php echo esc_html($prestaspot_image_type_label); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p>
+                        <label for="prestaspot_image_type_custom"><?php esc_html_e('Custom image type name', 'prestaspot'); ?></label>
+                        <input
+                            type="text"
+                            id="prestaspot_image_type_custom"
+                            name="prestaspot_image_type_custom"
+                            value="<?php echo esc_attr($settings['image_type_custom']); ?>"
+                            class="regular-text"
+                            placeholder="my_card_default"
+                            pattern="[A-Za-z0-9_\-]+"
+                        />
+                        <?php echo $prestaspot_reset_button('prestaspot_image_type_custom', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::IMAGE_TYPE_CUSTOM]); ?>
+                    </p>
+                    <p class="description">
+                        <?php esc_html_e('Which product image size of your shop to show. The pixel sizes are the PrestaShop defaults and may differ in your shop. The custom name is only used when "Custom image type" is selected; it must match an image type that exists in your shop (Design > Image Settings), otherwise images will not load.', 'prestaspot'); ?>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
                     <?php esc_html_e('Display Mode', 'prestaspot'); ?>
                     <?php echo $prestaspot_reset_button('prestaspot_view_mode', Presta_Spot_Settings::PRESTASPOT_SETTINGS_DEFAULTS[Presta_Spot_Settings::VIEW_MODE]); ?>
                 </th>

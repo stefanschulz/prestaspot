@@ -86,6 +86,15 @@ class Presta_Spot_Settings
         self::SORT_DATE_DESC,
     );
 
+    public const IMAGE_TYPE = 'image_type';
+    public const IMAGE_TYPE_CUSTOM = 'image_type_custom';
+
+    // PrestaShop's stock thumbnail types, offered as a dropdown. The webservice
+    // key can't list a shop's real types (image_types needs its own permission),
+    // so anything else goes through IMAGE_TYPE_CUSTOM.
+    public const IMAGE_TYPE_CHOICE_CUSTOM = 'custom';
+    const IMAGE_TYPES = array('small_default', 'home_default', 'medium_default', 'large_default');
+
     const PRESTASPOT_SETTINGS_DEFAULTS = array(
         self::SHOP_URL => '',
         self::API_KEY => '',
@@ -107,6 +116,8 @@ class Presta_Spot_Settings
         self::BUTTON_COLOR => '#2271b1',
         self::SALE_BADGE_COLOR => '#e63946',
         self::SORT => self::SORT_DEFAULT,
+        self::IMAGE_TYPE => 'medium_default',
+        self::IMAGE_TYPE_CUSTOM => '',
     );
 
     public function __construct() {}
@@ -132,6 +143,8 @@ class Presta_Spot_Settings
             self::BUTTON_COLOR => $this->get_prestaspot_option(self::BUTTON_COLOR),
             self::SALE_BADGE_COLOR => $this->get_prestaspot_option(self::SALE_BADGE_COLOR),
             self::SORT => $this->get_prestaspot_option(self::SORT),
+            self::IMAGE_TYPE => $this->get_prestaspot_option(self::IMAGE_TYPE),
+            self::IMAGE_TYPE_CUSTOM => $this->get_prestaspot_option(self::IMAGE_TYPE_CUSTOM),
         );
 
         $settings[self::SHOP_URL] = untrailingslashit(esc_url_raw($settings[self::SHOP_URL]));
@@ -162,8 +175,45 @@ class Presta_Spot_Settings
         $settings[self::SORT] = in_array($settings[self::SORT], self::SORTS, true)
             ? $settings[self::SORT]
             : self::PRESTASPOT_SETTINGS_DEFAULTS[self::SORT];
+        $settings[self::IMAGE_TYPE] = self::sanitize_image_type_choice((string)$settings[self::IMAGE_TYPE]);
+        $settings[self::IMAGE_TYPE_CUSTOM] = self::sanitize_image_type_name((string)$settings[self::IMAGE_TYPE_CUSTOM]);
 
         return $settings;
+    }
+
+    /**
+     * The PrestaShop image type to request, with the custom name only honoured
+     * when "custom" is picked and the name is valid.
+     */
+    public function get_image_type(): string
+    {
+        $settings = $this->get_all();
+        return self::resolve_image_type($settings[self::IMAGE_TYPE], $settings[self::IMAGE_TYPE_CUSTOM]);
+    }
+
+    public static function resolve_image_type(string $choice, string $custom): string
+    {
+        if (self::IMAGE_TYPE_CHOICE_CUSTOM === $choice && '' !== self::sanitize_image_type_name($custom)) {
+            return self::sanitize_image_type_name($custom);
+        }
+        return in_array($choice, self::IMAGE_TYPES, true)
+            ? $choice
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::IMAGE_TYPE];
+    }
+
+    public static function sanitize_image_type_choice(string $input): string
+    {
+        return in_array($input, self::IMAGE_TYPES, true) || self::IMAGE_TYPE_CHOICE_CUSTOM === $input
+            ? $input
+            : self::PRESTASPOT_SETTINGS_DEFAULTS[self::IMAGE_TYPE];
+    }
+
+    // The name ends up in a URL path, so only PrestaShop's own image-type
+    // characters pass; anything else becomes '' (no custom type).
+    public static function sanitize_image_type_name(string $input): string
+    {
+        $name = trim($input);
+        return 1 === preg_match('/^[A-Za-z0-9_-]+$/', $name) ? $name : '';
     }
 
     public function get(string $key): mixed

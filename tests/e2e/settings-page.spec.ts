@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { loginAsAdmin } from './helpers/login';
 
 /**
@@ -66,4 +66,55 @@ test.describe('Settings page - button color picker', () => {
         await expect(input).toHaveValue('#2271b1');
         await expect(resetButton).toBeHidden();
     });
+});
+
+test.describe('Settings page - image size', () => {
+    async function save(page: Page) {
+        await page.locator('input[type="submit"]').click();
+        await page.waitForLoadState('networkidle');
+    }
+
+    test.beforeEach(async ({ page }) => {
+        await loginAsAdmin(page);
+        await page.goto('/wp-admin/admin.php?page=prestaspot-settings');
+        await page.locator('#prestaspot_image_type').selectOption('medium_default');
+        await page.locator('#prestaspot_image_type_custom').fill('');
+        await save(page);
+    });
+
+    test('a chosen standard size persists after save and reload', async ({ page }) => {
+        await page.locator('#prestaspot_image_type').selectOption('large_default');
+        await save(page);
+
+        await expect(page.locator('#prestaspot_image_type')).toHaveValue('large_default');
+    });
+
+    test('a custom image type name persists, an invalid one is dropped', async ({ page }) => {
+        await page.locator('#prestaspot_image_type').selectOption('custom');
+        await page.locator('#prestaspot_image_type_custom').fill('my_card_default');
+        await save(page);
+        await expect(page.locator('#prestaspot_image_type')).toHaveValue('custom');
+        await expect(page.locator('#prestaspot_image_type_custom')).toHaveValue('my_card_default');
+
+        // The browser's own pattern validation would block this submit, so
+        // bypass it to exercise the server-side sanitizer.
+        await page.evaluate(() => document.querySelector('form')!.setAttribute('novalidate', ''));
+        await page.locator('#prestaspot_image_type_custom').fill('../evil');
+        await save(page);
+        await expect(page.locator('#prestaspot_image_type_custom')).toHaveValue('');
+    });
+});
+
+test('Settings page - sort order persists after save and reload', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/wp-admin/admin.php?page=prestaspot-settings');
+    await page.locator('#prestaspot_sort').selectOption('price_asc');
+    await page.locator('input[type="submit"]').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#prestaspot_sort')).toHaveValue('price_asc');
+
+    await page.locator('#prestaspot_sort').selectOption('');
+    await page.locator('input[type="submit"]').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#prestaspot_sort')).toHaveValue('');
 });
