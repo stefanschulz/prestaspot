@@ -51,7 +51,7 @@ prestaspot/                       (repo root, unchanged)
     │   ├── FormatPriceTest.php           # Presta_Spot_Api::format_price()
     │   └── LocalizedValueTest.php        # Presta_Spot_Api::localized_value()
     ├── Integration/
-    │   ├── IntegrationTestCase.php       # same expectDeprecated() workaround DinkyChat needed
+    │   ├── IntegrationTestCase.php       # expectDeprecated() workaround from DinkyChat + checkRequirements() no-op (silences a per-class PHPUnit 11 deprecation from WP core)
     │   ├── ProductFetchTest.php          # Presta_Spot_Api::get_products() against the real shop
     │   ├── CategoryAndLanguageTest.php   # get_categories()/get_languages() + name/code resolution
     │   ├── StockStatusTest.php           # product 3's zeroed stock (see .doc/DEVELOPER_GUIDE.md)
