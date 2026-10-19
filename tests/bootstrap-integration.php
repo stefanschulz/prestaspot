@@ -34,7 +34,7 @@ tests_add_filter('muplugins_loaded', function () {
     // shop_url intentionally has no trailing /api - see sanitize_shop_url();
     // the API client appends it. host.docker.internal is the one address
     // that resolves identically from inside this container and the host.
-    update_option('prestaspot_shop_url', getenv('PRESTASPOT_TEST_SHOP_URL') ?: 'http://host.docker.internal:8093');
+    update_option('prestaspot_shop_url', getenv('PRESTASPOT_TEST_SHOP_URL') ?: 'http://host.docker.internal:8171');
     update_option('prestaspot_api_key', getenv('PRESTASPOT_TEST_API_KEY') ?: 'GTT75HR58LMXV22EKVRVWAKDLVGXLIR9');
 });
 

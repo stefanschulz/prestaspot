@@ -92,7 +92,7 @@ Everything else (shortcode attribute parsing, block attribute mapping, the rende
 
 ## Integration tests (`tests/Integration/`)
 
-Real `WP_UnitTestCase`, real disposable WP test DB (via `bin/install-wp-tests.sh`, same as DinkyChat), running inside the `prestaspot-docker-wordpress-1` container - **plus** the `prestaspot-docker-prestashop-1` service has to be up, with the same Webservice API key and fixture data `DEVELOPER_GUIDE.md` documents for manual testing. `bootstrap-integration.php` seeds `prestaspot_shop_url`/`prestaspot_api_key` (pointing at `host.docker.internal:8093`, overridable via `PRESTASPOT_TEST_SHOP_URL`/`PRESTASPOT_TEST_API_KEY` env vars) before any test runs, since `Presta_Spot_Api::get_products()` returns `[]` outright without them.
+Real `WP_UnitTestCase`, real disposable WP test DB (via `bin/install-wp-tests.sh`, same as DinkyChat), running inside the `prestaspot-docker-wordpress-1` container - **plus** the `prestaspot-docker-prestashop-1` service has to be up, with the same Webservice API key and fixture data `DEVELOPER_GUIDE.md` documents for manual testing. `bootstrap-integration.php` seeds `prestaspot_shop_url`/`prestaspot_api_key` (pointing at `host.docker.internal:8171`, overridable via `PRESTASPOT_TEST_SHOP_URL`/`PRESTASPOT_TEST_API_KEY` env vars) before any test runs, since `Presta_Spot_Api::get_products()` returns `[]` outright without them.
 
 Coverage, grounded in fixtures that already exist:
 
