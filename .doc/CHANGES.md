@@ -1,5 +1,13 @@
 # PrestaSpot - Changelog
 
+## 0.16.4 (2026-10-19) - Security: API key no longer in public HTML
+
+- **Security fix:** product image URLs used the webservice route with `?ws_key=<API key>`, which printed the key into the public HTML of every page showing products. Images now use the shop's public image path (`/img/p/<digit folders>/<image id>-<type>.jpg`), so no key is ever output. **If you ran 0.16.3 or earlier, treat the key as exposed:** update, clear page/CDN caches, restrict the key to read-only (it no longer needs the `images` resource), create a new key and delete the old one.
+- New setting **Image Size** (`small_default`/`home_default`/`medium_default`/`large_default`, default `medium_default`, or a custom image type name). Previously images came back in the shop's original size.
+- Product list cache keys are now `prestaspot_products_v2_...` and include the image type; on update, old cached lists (which still held the key) are deleted (`Presta_Spot_Upgrade`, tracked via the `prestaspot_installed_version` option).
+- Fixed: the **Sort By** default on the settings page was never saved (`prestaspot_sort` wasn't registered with `register_setting()`).
+- Dev: dev stack ports moved to 8170 (WordPress) / 8171 (PrestaShop); new Unit/Integration/E2E tests for the image URL (including a "no key in the HTML" regression guard), image size setting, and sort setting.
+
 ## 0.16.3 (2026-09-07) - Automated Test Suite (dev tooling)
 
 - Added an automated Unit/Integration/E2E test suite (`composer.json`, `package.json`, `tests/`) modeled on the DinkyChat sibling project's setup - PHPUnit for Unit (no WordPress) and Integration (real disposable WordPress + the real dev-stack PrestaShop instance, not mocked HTTP), Playwright for E2E against the live dev stack. Dev tooling only, not shipped in the plugin package - see `.doc/TESTING.md` for the full reasoning and `.doc/DEVELOPER_GUIDE.md`'s "Running the Tests" section for how to run it.

@@ -45,20 +45,21 @@ class Presta_Spot_Api
                 }
             }
         }
-        $cache_key = 'prestaspot_products_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0') . '|' . $sort);
+        $image_type = $this->settings->get_image_type();
+        $cache_key = 'prestaspot_products_v2_' . md5($shop_url . '|' . $limit . '|' . $category_id . '|' . $language_id . '|' . ($on_sale ? '1' : '0') . '|' . $sort . '|' . $image_type);
         $cached = get_transient($cache_key);
         if ($cached !== false) {
             return $cached;
         }
 
-        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id, $on_sale, $sort);
+        $products = $this->fetch_products($shop_url, $api_key, $limit, $category_id, $language_id, $on_sale, $sort, $image_type);
 
         set_transient($cache_key, $products, $settings[Presta_Spot_Settings::CACHE_DURATION]);
 
         return $products;
     }
 
-    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale, string $sort): array
+    private function fetch_products(string $shop_url, string $api_key, int $limit, int $category_id, int $language_id, bool $on_sale, string $sort, string $image_type): array
     {
         $args = array(
             // "price" is tax-excluded - the tax-aware computed-price mechanism only works per-product, not on this list endpoint.
@@ -103,7 +104,7 @@ class Presta_Spot_Api
             ? $this->get_stock_quantities($shop_url, $api_key, array_map(fn($product) => absint($product['id'] ?? 0), $raw_products))
             : array();
 
-        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $api_key, $currency, $quantities), $raw_products);
+        return array_map(fn($product) => $this->normalize_product($product, $shop_url, $image_type, $currency, $quantities), $raw_products);
     }
 
     // public static for direct Unit-test coverage (see tests/Unit/ and .doc/TESTING.md).
@@ -131,7 +132,7 @@ class Presta_Spot_Api
         return $args;
     }
 
-    private function normalize_product(array $product, string $shop_url, string $api_key, array $currency, array $quantities): array
+    private function normalize_product(array $product, string $shop_url, string $image_type, array $currency, array $quantities): array
     {
         $id = absint($product['id'] ?? 0);
 
@@ -139,7 +140,7 @@ class Presta_Spot_Api
             'id' => $id,
             'name' => wp_strip_all_tags(self::localized_value($product['name'] ?? '')),
             'description' => wp_strip_all_tags(self::localized_value($product['description_short'] ?? '')),
-            'image_url' => $this->build_image_url($shop_url, $api_key, $id, $product['id_default_image'] ?? ''),
+            'image_url' => self::build_image_url($shop_url, $product['id_default_image'] ?? '', $image_type),
             'permalink' => trailingslashit($shop_url) . 'index.php?controller=product&id_product=' . $id,
             'price' => isset($product['price']) ? self::format_price((float)$product['price'], $currency) : '',
             'on_sale' => !empty($product['on_sale']),
@@ -212,13 +213,19 @@ class Presta_Spot_Api
         return (string)$value;
     }
 
-    private function build_image_url(string $shop_url, string $api_key, int $product_id, mixed $image_id): string
+    /**
+     * Public shop image path (/img/p/1/2/3/123-medium_default.jpg) - never
+     * the webservice route, which would need the API key in the page's HTML.
+     */
+    public static function build_image_url(string $shop_url, mixed $image_id, string $image_type): string
     {
         $image_id = is_array($image_id) ? ($image_id['value'] ?? '') : $image_id;
-        if (empty($image_id) || $product_id <= 0) {
+        $image_id = (string)$image_id;
+        if (!ctype_digit($image_id) || (int)$image_id <= 0 || '' === Presta_Spot_Settings::sanitize_image_type_name($image_type)) {
             return '';
         }
-        return trailingslashit($shop_url) . "api/images/products/$product_id/$image_id?ws_key=" . rawurlencode($api_key);
+        $folders = implode('/', str_split((string)(int)$image_id));
+        return rtrim($shop_url, '/') . "/img/p/$folders/$image_id-$image_type.jpg";
     }
 
     /**

@@ -43,4 +43,15 @@ test.describe('Shortcode frontend rendering', () => {
         await expect(page.locator('.prestaspot-card-price')).toContainText('23.90');
         await expect(page.locator('.prestaspot-card-stock')).toContainText('In Stock');
     });
+
+    test('keeps the webservice key out of the public HTML and still loads the images', async ({ page }) => {
+        const response = await page.goto(`/?page_id=${postId}`);
+        const html = await response!.text();
+        expect(html).toContain('<img');
+        expect(html).not.toContain('ws_key');
+
+        const image = page.locator('.prestaspot-card-image img').first();
+        await image.scrollIntoViewIfNeeded();
+        await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    });
 });

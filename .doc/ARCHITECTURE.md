@@ -2,7 +2,7 @@
 
 Technical reference for the PrestaSpot plugin's structure and class contracts, for developers and LLMs working on the codebase.
 
-**Version**: 0.16.3
+**Version**: 0.16.4
 
 ---
 
@@ -13,12 +13,13 @@ prestaspot/
 ├── prestaspot.php                         # Plugin header, constants, autoloader, singleton bootstrap
 ├── includes/
 │   ├── class-presta-spot-settings.php       # Settings model: option keys, defaults, sanitized get_all()/get()
-│   ├── class-presta-spot-api.php            # PrestaShop Webservice client (products + images), transient-cached
+│   ├── class-presta-spot-api.php            # PrestaShop Webservice client (products), transient-cached
 │   ├── class-presta-spot-renderer.php       # Merges instance args with settings, renders templates/product-cards.php
 │   ├── class-presta-spot-shortcode.php      # Registers [prestaspot], maps shortcode_atts() to renderer args
 │   ├── class-presta-spot-block.php          # Registers the dynamic prestaspot/product-list block, maps block attributes to renderer args
 │   ├── class-presta-spot-admin.php          # Settings page (wp-admin), Settings API registration, admin asset enqueue
-│   └── class-presta-spot-frontend.php       # Enqueues assets/css/prestaspot.css on the frontend
+│   ├── class-presta-spot-frontend.php       # Enqueues assets/css/prestaspot.css on the frontend
+│   └── class-presta-spot-upgrade.php        # One-time cleanup (cached product lists) when the plugin version changes
 ├── templates/
 │   ├── product-cards.php                    # Card grid AND list-row markup (view_mode), shared by shortcode and block
 │   └── settings-page.php                    # Admin settings page markup
@@ -154,10 +155,10 @@ Since `name` and `description` both always appear in every `LAYOUT_ELEMENT_ORDER
 **`on_sale` is shop-scoped, not the base `ps_product` row** - worth knowing if you're editing this field directly in the DB rather than through PrestaShop's admin UI (see the dev-fixture note in `.doc/DEVELOPER_GUIDE.md`, discovered exactly this way): `Product::$definition['fields']['on_sale']` has `'shop' => true`, meaning `Product::on_sale` and this webservice display field both actually read `ps_product_shop.on_sale`. `ps_product.on_sale` still exists as a column but isn't what's read here - a raw `UPDATE ps_product SET on_sale=1` was observed to make `filter[on_sale]=1` match the product while the returned `on_sale` display field for that same product still read back `"0"`, until `ps_product_shop.on_sale` was updated too. Exactly why the filter and the display field disagreed isn't confirmed (not worth digging into PrestaShop's filter SQL for a dev-fixture quirk) - but updating both is the fix and avoids the question.
 
 - **Multilingual fields** (`name`, `description_short`): PrestaShop returns these as a plain string when the request was scoped to a single language via `language=`, or as an array of `{id, value}` pairs (one per configured shop language) when it wasn't. `localized_value()` normalizes both shapes to a string, taking the first language's value in the array case - this array case is now mainly a fallback (no Polylang, or no matching shop language), not the primary path.
-- **Images**: built as `{shop_url}/api/images/products/{id}/{image_id}?ws_key={api_key}` — `ws_key` as a query param (rather than a `Basic` auth header) is required here because this URL is embedded directly in an `<img src>` and loaded by the visitor's browser, which can't send a custom `Authorization` header.
+- **Images**: `Presta_Spot_Api::build_image_url()` (public static, pure) builds the shop's public image path `{shop_url}/img/p/{one folder per digit of image_id}/{image_id}-{image_type}.jpg` (e.g. image 3534 → `/img/p/3/5/3/4/3534-medium_default.jpg`); `image_type` comes from `Presta_Spot_Settings::get_image_type()`. The image id is the product's `id_default_image` (not the product id). Never the webservice route `api/images/...?ws_key=`: that URL ends up in public HTML, so the key would be readable by every visitor (that was the case up to 0.16.3). Returns `''` without a purely numeric image id or with an invalid type name. The shop must serve `/img/p/` publicly (the PrestaShop default) - hotlink protection or a blocked folder would break the images.
 - **Permalink**: always `{shop_url}/index.php?controller=product&id_product={id}` (the ID-based fallback URL) rather than a friendly/rewritten URL — this works regardless of the shop's URL-rewrite configuration, at the cost of not being a "pretty" URL.
 
-**Caching**: results are cached in a transient keyed by `md5(shop_url|limit|category_id|language_id|on_sale|sort)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id, `on_sale`, and `sort` are all part of the key specifically so different languages, sale-filtered vs. unfiltered, or differently-sorted requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered). Stock quantities aren't a separate cache key - they're fetched once per cache-miss render and baked into the cached product array, same as price/currency.
+**Caching**: results are cached in a transient keyed by `prestaspot_products_v2_` + `md5(shop_url|limit|category_id|language_id|on_sale|sort|image_type)` (the resolved language id, `0` if none - see below), TTL from the `cache_duration` setting; the language id, `on_sale`, `sort`, and image type are all part of the key specifically so different languages, sale-filtered vs. unfiltered, or differently-sorted requests never share a stale cache entry. There's no cache invalidation beyond TTL expiry — changing shop content only reflects after the cache window passes (or `cache_duration` is lowered). Stock quantities aren't a separate cache key - they're fetched once per cache-miss render and baked into the cached product array, same as price/currency.
 
 ### Stock status (`is_stock_managed()`, `get_stock_quantities()`)
 
