@@ -147,8 +147,33 @@ Specs:
 
 ---
 
+## CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request (and is reused by the release workflow):
+
+| Job | What |
+|---|---|
+| `lint` | `php -l` on plugin, tests and tooling on PHP 8.0 - 8.5 (the plugin header says "Requires PHP: 8.0"); `bin/check-version.php` |
+| `unit` | `composer test` on PHP 8.2 - 8.4 (PHPUnit 11 needs 8.2+) |
+| `integration` | WordPress test library + MySQL service, plus a **throwaway PrestaShop** (`.docker/ci-compose.yml`) seeded by `bin/ci-seed-prestashop.sh` with the fixtures from the Developer Guide and a read-only CI key; then `composer test-integration` |
+| `package` | `php build-package.php` + `bin/check-package.php`, uploads the ZIP as an artifact |
+
+The PrestaShop auto-install takes several minutes, so the integration job is the slow one. To reproduce it locally without touching the dev stack (Git Bash needs `MSYS_NO_PATHCONV=1` for the container paths):
+
+```bash
+export CI_PS_HOST=host.docker.internal CI_PS_PORT=8181
+docker compose -f .docker/ci-compose.yml up -d
+bash bin/ci-seed-prestashop.sh
+MSYS_NO_PATHCONV=1 docker exec -e PRESTASPOT_TEST_SHOP_URL=http://host.docker.internal:8181 -e PRESTASPOT_TEST_API_KEY=PRESTASPOTCITESTKEY00000000000AB prestaspot-docker-wordpress-1 php /repo/vendor/bin/phpunit --configuration /repo/phpunit-integration.xml.dist --cache-directory /tmp/phpunit
+docker compose -f .docker/ci-compose.yml down -v
+```
+
+If `docker compose up` fails with "all predefined address pools have been fully subnetted" (many sibling stacks on one machine), create a network with an explicit subnet (`docker network create --subnet 10.250.77.0/24 prestaspot-ci-net`) and add a git-ignored `.docker/ci-compose.local.yml` declaring it as the default network (`networks: {default: {name: prestaspot-ci-net, external: true}}`). Then export `COMPOSE_FILE=".docker/ci-compose.yml:.docker/ci-compose.local.yml"` so both the compose commands and the seed script pick it up.
+
+WPCS isn't a CI gate: the project uses 4-space indentation rather than WordPress's tabs, which accounts for nearly all of the ~4000 violations a full run reports. The security-only sniffs flag 42 "output not escaped" spots in two templates, which would need to be reviewed individually first.
+
 ## Decisions made
 
 1. **`build_sort_args()`/`localized_value()`/`format_price()` promoted to `public static`.** All three are pure (no `$this`, no WP function calls) and were only ever exercised indirectly, deep inside `fetch_products()` - low risk, and it's exactly the `get_contrasting_text_color()` precedent this codebase already established for the same reason. Call sites updated to `self::` accordingly.
-2. **CI skipped**, per explicit instruction - this suite is local-only for now, same as the project's manual-testing workflow has been throughout.
+2. **CI was initially skipped, then added** (see "CI" below). E2E stays local-only for now: it needs a running WordPress with the plugin plus Playwright, and its container name/base URL are hard-wired to the dev stack. The "no key in the HTML" guarantee is covered by the Integration tests, so CI doesn't depend on E2E for it.
 3. **All three tiers built in one pass** - Unit (5 test files, 20 tests), Integration (4 test files, 15 tests, run against the real dev-stack PrestaShop), E2E (3 specs, 5 tests, Playwright against `http://prestaspot.localhost`). All passing as of this writing.

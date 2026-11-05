@@ -60,3 +60,5 @@ wp-config.php
 /.phpunit.cache/
 /playwright-report/
 /test-results/
+# Local-only compose overrides (e.g. a fixed-subnet network when Docker has run out of address pools)
+/.docker/*.local.yml

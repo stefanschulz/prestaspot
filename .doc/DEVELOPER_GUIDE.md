@@ -223,6 +223,23 @@ Using `show_image` as the reference (a boolean); swap the sentinel logic describ
 
 ---
 
+## Releasing
+
+A release is a pushed tag `vX.Y.Z`; `.github/workflows/release.yml` does the rest (all version numbers must match the tag, the full CI must pass, release notes come from `.doc/CHANGES.md`, the GitHub release gets the CI-built ZIP plus its `.sha256`). Nothing is published if any step fails.
+
+1. Bump the version in all five places - `prestaspot/prestaspot.php` (header), `prestaspot/blocks/product-list/block.json`, `prestaspot/blocks/product-list/index.asset.php`, the `**Version**` line in `.doc/ARCHITECTURE.md`, and add a `## X.Y.Z (date) - title` entry at the top of `.doc/CHANGES.md`. `php bin/check-version.php` tells you if they disagree.
+2. Commit, push to `main`, and wait for CI to go green.
+3. Tag the commit that ships it and push the tag:
+
+   ```bash
+   git tag -a vX.Y.Z -m "PrestaSpot X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+4. Watch the **Release** run under the repository's Actions tab; the release (with `prestaspot-X.Y.Z.zip`) appears on success. If it fails, nothing was published - fix the cause, then delete the tag (`git tag -d vX.Y.Z` and `git push origin :refs/tags/vX.Y.Z`) and tag again.
+
+A tag only triggers the workflow if the workflow file exists in the tagged commit. `php build-package.php` builds the same ZIP locally into `.releases/` (kept permanently, never deleted by later builds).
+
 ## Before Committing
 
 - `php -l` every changed `.php` file (no PHP interpreter needed beyond what's already on this machine).

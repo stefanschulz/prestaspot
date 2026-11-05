@@ -1,0 +1,51 @@
+# Disposable PrestaShop for the Integration suite - used by CI and runnable
+# locally on spare ports without touching the dev stack:
+#
+#   CI_PS_HOST=host.docker.internal CI_PS_PORT=8181 docker compose -f .docker/ci-compose.yml up -d
+#   CI_PS_HOST=host.docker.internal CI_PS_PORT=8181 bash bin/ci-seed-prestashop.sh
+#
+# PrestaShop redirects any request whose Host differs from PS_DOMAIN, so the
+# host:port the tests use (PRESTASPOT_TEST_SHOP_URL) must be exactly this one.
+name: prestaspot-ci
+
+services:
+  ps-db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: prestashop
+      MYSQL_USER: prestashop
+      MYSQL_PASSWORD: prestashop
+      MYSQL_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  prestashop:
+    image: prestashop/prestashop:9.1-apache
+    depends_on:
+      ps-db:
+        condition: service_healthy
+    ports:
+      - "${CI_PS_PORT:-8180}:80"
+    environment:
+      DB_SERVER: ps-db
+      DB_NAME: prestashop
+      DB_USER: prestashop
+      DB_PASSWD: prestashop
+      PS_DOMAIN: ${CI_PS_HOST:-localhost}:${CI_PS_PORT:-8180}
+      PS_FOLDER_INSTALL: install
+      PS_FOLDER_ADMIN: admin
+      PS_LANGUAGE: en
+      PS_COUNTRY: DE
+      ADMIN_MAIL: admin@example.com
+      ADMIN_PASSWD: Admin1234!
+      PS_INSTALL_AUTO: 1
+    # Without a volume the installer can't rename the admin folder
+    # ("The admin folder could not be renamed") and aborts at its last step.
+    volumes:
+      - ps_data:/var/www/html
+
+volumes:
+  ps_data:

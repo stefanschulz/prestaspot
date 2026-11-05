@@ -58,4 +58,8 @@ if (is_dir($source_dir)) {
 
 $zip->close();
 
-echo "✅ Package created: .releases/prestaspot-$version.zip\n";
+// Same checksum file convention as the DinkyChat sibling project.
+$hash = hash_file('sha256', $zip_file);
+file_put_contents($zip_file . '.sha256', $hash . '  ' . basename($zip_file) . "\n");
+
+echo "✅ Package created: .releases/prestaspot-$version.zip (+ .sha256)\n";
