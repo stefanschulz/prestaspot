@@ -103,6 +103,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: prestaspot-zip
+          # .releases/ is a dot-folder, which upload-artifact skips by default.
+          include-hidden-files: true
           path: |
             .releases/prestaspot-*.zip
             .releases/prestaspot-*.zip.sha256
